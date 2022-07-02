@@ -788,7 +788,7 @@ async function sponsorsLookup(id: string, keepOldSubmissions = true) {
                         segment: [cursor, time.segment[0]],
                         source: SponsorSourceType.Local,
                         actionType: ActionType.Skip,
-                        category: "sponsor" as Category,
+                        category: "preview" as Category,
                         UUID: null
                     });
                 }
@@ -801,7 +801,7 @@ async function sponsorsLookup(id: string, keepOldSubmissions = true) {
                     segment: [cursor, video.duration],
                     source: SponsorSourceType.Local,
                     actionType: ActionType.Skip,
-                    category: "sponsor" as Category,
+                    category: "preview" as Category,
                     UUID: null
                 });
             }
