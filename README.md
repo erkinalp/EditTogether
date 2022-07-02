@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://sponsor.ajay.app"><img src="public/icons/LogoSponsorBlocker256px.png" alt="Logo"></img></a>
+  <a href="https://giveup.ajay.app"><img src="public/icons/LogoSponsorBlocker256px.png" alt="Logo"></img></a>
 
   <br/>
   <sub>Logo by <a href="https://github.com/munadikieh">@munadikieh</a></sub>
