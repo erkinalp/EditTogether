@@ -1,11 +1,11 @@
 <p align="center">
-  <a href="https://sponsor.ajay.app"><img src="public/icons/LogoSponsorBlocker256px.png" alt="Logo"></img></a>
+  <a href="https://giveup.ajay.app"><img src="public/icons/LogoSponsorBlocker256px.png" alt="Logo"></img></a>
 
   <br/>
   <sub>Logo by <a href="https://github.com/munadikieh">@munadikieh</a></sub>
 </p>
 
-<h1 align="center">SponsorBlock</h1>
+<h1 align="center">SponsorLock</h1>
 
 <p align="center">
   <b>Download:</b>
@@ -36,7 +36,7 @@
 
 
 
-SponsorBlock is an open-source crowdsourced browser extension to skip sponsor segments in YouTube videos. Users submit when a sponsor happens from the extension, and the extension automatically skips sponsors it knows about. It also supports skipping other categories, such as intros, outros and reminders to subscribe.
+SponsorLock is an open-source crowdsourced browser extension to isolate sponsor segments in YouTube videos. Users submit when a sponsor happens from the extension, and the extension only shows you sponsor segments.
 
 It also supports Invidio.us.
 
