@@ -3,6 +3,7 @@ import * as invidiousList from "../ci/invidiouslist.json";
 import { Category, CategorySelection, CategorySkipOption, NoticeVisbilityMode, PreviewBarOption, SponsorTime, VideoID, SponsorHideType } from "./types";
 import { Keybind, ProtoConfig, keybindEquals } from "../maze-utils/src/config";
 import { HashedValue } from "../maze-utils/src/hash";
+import { StorageChangesObject, StorageObjects } from "./types/storage";
 
 export interface Permission {
     canSubmit: boolean;
@@ -79,6 +80,7 @@ interface SBConfig {
     shownDeArrowPromotion: boolean;
     showZoomToFillError2: boolean;
     cleanPopup: boolean;
+    hideAllSegments: boolean; // New property to control hiding all segments
 
     // Used to cache calculated text color info
     categoryPillColors: {
@@ -140,7 +142,7 @@ interface SBStorage {
     /* VideoID prefixes to UUID prefixes */
     downvotedSegments: Record<VideoID & HashedValue, VideoDownvotes>;
     navigationApiAvailable: boolean;
-    
+
     // Used when sync storage disabled
     alreadyInstalled: boolean;
 
@@ -148,19 +150,113 @@ interface SBStorage {
     unsubmittedSegments: Record<string, SponsorTime[]>;
 }
 
-class ConfigClass extends ProtoConfig<SBConfig, SBStorage> {
-    resetToDefault() {
-        chrome.storage.sync.set({
-            ...this.syncDefaults,
+export class ConfigClass implements ProtoConfig<SBConfig, SBStorage> {
+    public config: SBConfig = null;
+    public storage: SBStorage = null;
+    public configSyncListeners: Array<(changes?: StorageChangesObject) => void> = [];
+    public configLocalListeners: Array<(changes?: StorageChangesObject) => void> = [];
+    public local: SBStorage = null;
+    public isReady = () => this.config !== null;
+    public syncDefaults: SBConfig;
+    public localDefaults: SBStorage;
+    public cachedLocalStorage: SBStorage = null;
+    public cachedSyncConfig: SBConfig = null;
+    public inDeArrow = false;
+    public configProxy = null;
+
+    public async forceSyncUpdate(): Promise<void> {
+        chrome.storage.sync.set(this.config);
+    }
+
+    public async fetchConfig(): Promise<void> {
+        await this.initializeStorage();
+    }
+
+    public async setupConfig(migrateOldSyncFormats: (config: SBConfig) => void): Promise<StorageObjects<SBConfig, SBStorage>> {
+        if (typeof(chrome) === "undefined") return null as unknown as StorageObjects<SBConfig, SBStorage>;
+
+        await this.fetchConfig();
+        this.addDefaults();
+        const result = this.configProxy();
+        migrateOldSyncFormats(result.sync);
+
+        return result;
+    }
+
+    public addDefaults(): void {
+        for (const key in this.syncDefaults) {
+            if (!Object.prototype.hasOwnProperty.call(this.config, key)) {
+                this.config[key] = this.syncDefaults[key];
+            }
+        }
+
+        for (const key in this.localDefaults) {
+            if (!Object.prototype.hasOwnProperty.call(this.local, key)) {
+                this.local[key] = this.localDefaults[key];
+            }
+        }
+    }
+
+    constructor() {
+        this.syncDefaults = syncDefaults;
+        this.localDefaults = localDefaults;
+        this.config = { ...syncDefaults };
+        this.storage = {
+            downvotedSegments: {},
+            navigationApiAvailable: false,
+            alreadyInstalled: false,
+            unsubmittedSegments: {}
+        };
+        this.local = { ...this.storage };
+        this.initializeStorage();
+    }
+
+    private async initializeStorage() {
+        try {
+            const syncData = (await new Promise<Record<string, unknown>>(resolve =>
+                chrome.storage.sync.get(null, result => resolve(result as Record<string, unknown>))
+            ));
+            const localData = (await new Promise<Record<string, unknown>>(resolve =>
+                chrome.storage.local.get(null, result => resolve(result as Record<string, unknown>))
+            ));
+
+            this.config = {
+                ...this.syncDefaults,
+                ...(syncData as unknown as Partial<SBConfig>)
+            };
+
+            this.storage = {
+                ...this.storage,
+                ...(localData as unknown as Partial<SBStorage>)
+            };
+
+            // Cast with proper type assertions
+            this.local = { ...this.storage };
+            this.cachedLocalStorage = { ...this.storage };
+            this.cachedSyncConfig = { ...this.config };
+        } catch (e) {
+            console.error("Failed to initialize storage:", e);
+        }
+    }
+
+    public forceLocalUpdate(): void {
+        chrome.storage.local.set(this.storage);
+    }
+
+    public resetToDefault(): void {
+        const preservedFields = {
             userID: this.config.userID,
             minutesSaved: this.config.minutesSaved,
             skipCount: this.config.skipCount,
             sponsorTimesContributed: this.config.sponsorTimesContributed
+        };
+
+        chrome.storage.sync.set({
+            ...this.syncDefaults,
+            ...preservedFields
         });
 
-        chrome.storage.local.set({
-            ...this.localDefaults,
-        });
+        chrome.storage.local.set(this.localDefaults);
     }
 }
 
@@ -185,7 +281,7 @@ function migrateOldSyncFormats(config: SBConfig) {
                 name: "chapter" as Category,
                 option: CategorySkipOption.ShowOverlay
             });
-    
+
             config.categorySelections = config.categorySelections;
         }
     }
@@ -337,6 +433,7 @@ const syncDefaults = {
     shownDeArrowPromotion: false,
     showZoomToFillError2: true,
     cleanPopup: false,
+    hideAllSegments: false,
 
     categoryPillColors: {},
 
@@ -478,8 +575,7 @@ const localDefaults = {
     unsubmittedSegments: {}
 };
 
-const Config = new ConfigClass(syncDefaults, localDefaults, migrateOldSyncFormats);
-export default Config;
+export const Config = new ConfigClass();
 
 export function generateDebugDetails(): string {
     // Build output debug information object
