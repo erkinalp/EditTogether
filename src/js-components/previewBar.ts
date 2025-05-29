@@ -79,6 +79,7 @@ class PreviewBar {
     unfilteredChapterGroups: ChapterGroup[];
     chapterGroups: ChapterGroup[];
     private getCategorySkipOption: (category: Category) => CategorySkipOption | undefined;
+    private testMode: boolean; // Added for test mode
 
 
     constructor(
@@ -89,17 +90,17 @@ class PreviewBar {
         chapterVote: ChapterVote, 
         updateExistingChapters: () => void, 
         getCategorySkipOption: (category: Category) => CategorySkipOption | undefined, // Added
-        test=false
+        test = false
     ) {
-        if (test) return;
+        this.testMode = test; // Store test mode
         this.container = document.createElement('ul');
         this.container.id = 'previewbar';
 
-        if (onYTTV) {
+        if (!this.testMode && onYTTV) { // Guard DOM manipulation
             this.container.classList.add("sponsorblock-yttv-container");
         }
 
-        this.parent = parent;
+        this.parent = parent; // Can be a mock in test mode
         this.onMobileYouTube = onMobileYouTube;
         this.onInvidious = onInvidious;
         this.onYTTV = onYTTV;
@@ -107,18 +108,19 @@ class PreviewBar {
         this.updateExistingChapters = updateExistingChapters;
         this.getCategorySkipOption = getCategorySkipOption; // Added
 
-        this.updatePageElements();
-        this.createElement(parent);
+        // These methods will be refactored to be test-mode aware
+        this.updatePageElements(); 
+        this.createElement(); 
         this.createChapterMutationObservers();
-
         this.setupHoverText();
     }
 
     setupHoverText(): void {
-        if (this.onMobileYouTube || this.onInvidious) return;
+        if (this.testMode || this.onMobileYouTube || this.onInvidious) return; // Bypass if in test mode or mobile/invidious
 
         // delete old ones
-        document.querySelectorAll(`.sponsorCategoryTooltip`)
+        // This is a global query, might be problematic if not mocked in tests, but setupHoverText is bypassed in testMode.
+        document.querySelectorAll(`.sponsorCategoryTooltip`) 
             .forEach((e) => e.remove());
 
         // Create label placeholder
@@ -144,9 +146,13 @@ class PreviewBar {
 
         // global chapter tooltip or duration tooltip
         // YT, Vorapis, unknown, YTTV
+        // Global queries will need careful mocking in tests if this method is not fully bypassed.
+        // For now, keeping the initial bypass for testMode.
         const tooltipTextWrapper = document.querySelector(".ytp-tooltip-text-wrapper, .ytp-progress-tooltip-text-container, .yssi-slider .ys-seek-details .time-info-bar") ?? document.querySelector("#progress-bar-container.ytk-player > #hover-time-info");
+        if (!tooltipTextWrapper) return; // Early exit if essential element not found
+        
         const originalTooltip = tooltipTextWrapper.querySelector(".ytp-tooltip-title:not(.sponsorCategoryTooltip), .ytp-progress-tooltip-text:not(.sponsorCategoryTooltip), .current-time:not(.sponsorCategoryTooltip)") as HTMLElement;
-        if (!tooltipTextWrapper || !tooltipTextWrapper.parentElement) return;
+        if (!originalTooltip || !tooltipTextWrapper.parentElement) return;
 
         // Grab the tooltip from the text wrapper as the tooltip doesn't have its classes on init
         this.categoryTooltipContainer = tooltipTextWrapper.parentElement;
@@ -154,35 +160,35 @@ class PreviewBar {
         const titleTooltip = tooltipTextWrapper.querySelector(".ytp-tooltip-title, .ytp-progress-tooltip-text, .current-time") as HTMLElement;
         if (!this.categoryTooltipContainer || !titleTooltip) return;
 
+        // DOM manipulations
         tooltipTextWrapper.insertBefore(this.categoryTooltip, titleTooltip.nextSibling);
         tooltipTextWrapper.insertBefore(this.chapterTooltip, titleTooltip.nextSibling);
 
         if (isOnYTTV()) {
-            const scrubTooltipTextWrapper = document.querySelector(".yssi-slider .ysl-filmstrip-lens .time-info-bar")
-            if (!this.categoryTooltipContainer) return;
-    
-            scrubTooltipTextWrapper.appendChild(this.categoryScrubTooltip);
-            scrubTooltipTextWrapper.appendChild(this.chapterScrubTooltip);
+            const scrubTooltipTextWrapper = document.querySelector(".yssi-slider .ysl-filmstrip-lens .time-info-bar");
+            if (scrubTooltipTextWrapper && this.categoryScrubTooltip && this.chapterScrubTooltip) { // Check if elements exist
+                scrubTooltipTextWrapper.appendChild(this.categoryScrubTooltip);
+                scrubTooltipTextWrapper.appendChild(this.chapterScrubTooltip);
+            }
         }
 
         const seekBar = (document.querySelector(".ytp-progress-bar-container, .ypcs-scrub-slider-slot.ytu-player-controls"));
-        if (!seekBar) return;
+        if (!seekBar) return; // Essential for hover logic
 
         let mouseOnSeekBar = false;
 
-        seekBar.addEventListener("mouseenter", () => {
-            mouseOnSeekBar = true;
-        });
-
-        seekBar.addEventListener("mouseleave", () => {
-            mouseOnSeekBar = false;
-        });
+        // Event listeners for actual browser environment
+        seekBar.addEventListener("mouseenter", () => { mouseOnSeekBar = true; });
+        seekBar.addEventListener("mouseleave", () => { mouseOnSeekBar = false; });
 
         seekBar.addEventListener("mousemove", (e: MouseEvent) => {
             if (!mouseOnSeekBar || !this.categoryTooltip || !this.categoryTooltipContainer || !chrome.runtime?.id) return;
+            
+            const seekBarRect = seekBar.getBoundingClientRect();
+            if (!seekBarRect || seekBarRect.width === 0) return; // Avoid division by zero if rect is invalid
 
             let noYoutubeChapters = !!tooltipTextWrapper.querySelector(".ytp-tooltip-text.ytp-tooltip-text-no-title, .ytp-progress-tooltip-timestamp");
-            const timeInSeconds = this.decimalToTime((e.clientX - seekBar.getBoundingClientRect().x) / seekBar.clientWidth);
+            const timeInSeconds = this.decimalToTime((e.clientX - seekBarRect.x) / seekBarRect.width);
 
             // Find the segment at that location, using the shortest if multiple found
             const [normalSegments, chapterSegments] =
@@ -275,45 +281,59 @@ class PreviewBar {
         }
     }
 
-    createElement(parent?: HTMLElement): void {
-        if (parent) this.parent = parent;
+    createElement(parent?: HTMLElement): void { // `parent` argument is shadowed by `this.parent`
+        if (parent && !this.testMode) this.parent = parent; // Only assign if not in test and parent is provided
 
-        if (this.onMobileYouTube) {
+        if (this.onMobileYouTube && this.container) {
             this.container.style.transform = "none";
-        } else if (!this.onInvidious) {
+        } else if (!this.onInvidious && this.container) {
             this.container.classList.add("sbNotInvidious");
         }
 
-        // On the seek bar
-        if (this.onYTTV) {
-            // order of sibling elements matters on YTTV
-            this.parent.insertBefore(this.container, this.parent.firstChild.nextSibling.nextSibling);
-        } else {
-            this.parent.prepend(this.container);
+        // On the seek bar - DOM manipulation, guard with testMode and parent existence
+        if (!this.testMode && this.parent && this.container) {
+            if (this.onYTTV) {
+                // order of sibling elements matters on YTTV
+                if (this.parent.firstChild?.nextSibling?.nextSibling) { // Ensure elements exist
+                    this.parent.insertBefore(this.container, this.parent.firstChild.nextSibling.nextSibling);
+                } else {
+                    this.parent.appendChild(this.container); // Fallback append
+                }
+            } else {
+                this.parent.prepend(this.container);
+            }
         }
     }
 
     clear(): void {
-        while (this.container.firstChild) {
-            this.container.removeChild(this.container.firstChild);
+        if (this.container) { // Check if container exists
+            while (this.container.firstChild) {
+                this.container.removeChild(this.container.firstChild);
+            }
         }
 
         if (this.customChaptersBar) this.customChaptersBar.style.display = "none";
-        this.originalChapterBar?.style?.removeProperty("display");
+        
+        if (!this.testMode && this.originalChapterBar?.style) { // Guard style access
+            this.originalChapterBar.style.removeProperty("display");
+        }
+        
         this.chapterVote?.setVisibility(false);
 
-        document.querySelectorAll(`.sponsorBlockChapterBar`).forEach((e) => {
-            if (e !== this.customChaptersBar) {
-                e.remove();
-            }
-        });
+        if (!this.testMode) { // Guard global querySelectorAll
+            document.querySelectorAll(`.sponsorBlockChapterBar`).forEach((e) => {
+                if (e !== this.customChaptersBar) {
+                    e.remove();
+                }
+            });
+        }
     }
 
     set(segments: PreviewBarSegment[], videoDuration: number): void {
         this.segments = segments ?? [];
         this.videoDuration = videoDuration ?? 0;
-        this.virtualVideoDuration = this.videoDuration; // Initialize with actual duration
-        this.hasYouTubeChapters = segments.some((segment) => segment.source === SponsorSourceType.YouTube);
+        this.virtualVideoDuration = this.videoDuration; 
+        this.hasYouTubeChapters = segments?.some((segment) => segment.source === SponsorSourceType.YouTube) ?? false;
 
         // Remove unnecessary original chapters if submitted replacements exist
         for (const chapter of this.segments.filter((s) => s.actionType === ActionType.Chapter && s.source === SponsorSourceType.Server)) {
@@ -372,57 +392,72 @@ class PreviewBar {
 
     private updatePageElements(): void {
         // YT, Vorapis v3
-        const allProgressBars = document.querySelectorAll(".ytp-progress-bar, .ytp-progress-bar-container > .html5-progress-bar > .ytp-progress-list") as NodeListOf<HTMLElement>;
-        this.progressBar = findValidElement(allProgressBars) ?? allProgressBars?.[0];
+        // Only perform DOM queries if not in test mode or if essential elements might be mocked
+        if (!this.testMode) {
+            const allProgressBars = document.querySelectorAll(".ytp-progress-bar, .ytp-progress-bar-container > .html5-progress-bar > .ytp-progress-list") as NodeListOf<HTMLElement>;
+            this.progressBar = findValidElement(allProgressBars) ?? allProgressBars?.[0];
 
-        if (this.progressBar) {
-            const newChapterBar = this.progressBar.querySelector(".ytp-chapters-container:not(.sponsorBlockChapterBar)") as HTMLElement;
-            if (this.originalChapterBar !== newChapterBar) {
-                // Make sure changes are undone on old bar
-                this.originalChapterBar?.style?.removeProperty("display");
-
-                this.originalChapterBar = newChapterBar;
+            if (this.progressBar) {
+                const newChapterBar = this.progressBar.querySelector(".ytp-chapters-container:not(.sponsorBlockChapterBar)") as HTMLElement;
+                if (this.originalChapterBar !== newChapterBar) {
+                    this.originalChapterBar?.style?.removeProperty("display");
+                    this.originalChapterBar = newChapterBar;
+                }
             }
+        } else {
+            // In test mode, these might be explicitly mocked by the test setup if needed
+            // this.progressBar = null; 
+            // this.originalChapterBar = null;
         }
     }
 
     private update(): void {
-        this.clear();
-        const chapterChevron = this.getChapterChevron();
-
-        if (!this.segments) {
-            chapterChevron?.style?.removeProperty("display");
+        this.clear(); // clear now respects testMode for DOM parts
+        
+        if (!this.testMode) { // Guard DOM specific logic
+            const chapterChevron = this.getChapterChevron();
+            if (!this.segments) {
+                chapterChevron?.style?.removeProperty("display");
+            }
         }
 
         this.chapterMargin = 2;
-        if (this.originalChapterBar) {
-            this.originalChapterBarBlocks = this.originalChapterBar.querySelectorAll(":scope > div") as NodeListOf<HTMLElement>
-            this.existingChapters = this.segments.filter((s) => s.source === SponsorSourceType.YouTube).sort((a, b) => a.segment[0] - b.segment[0]);
+        // Access to originalChapterBarBlocks depends on originalChapterBar being set (usually via updatePageElements)
+        if (this.originalChapterBar) { 
+            this.originalChapterBarBlocks = this.originalChapterBar.querySelectorAll(":scope > div") as NodeListOf<HTMLElement>;
+            if (this.segments) { // Ensure segments is not null
+                 this.existingChapters = this.segments.filter((s) => s.source === SponsorSourceType.YouTube).sort((a, b) => a.segment[0] - b.segment[0]);
+            } else {
+                this.existingChapters = [];
+            }
 
-            if (this.existingChapters?.length > 0) {
+            if (this.existingChapters?.length > 0 && this.originalChapterBarBlocks?.[0]?.style) { // Guard style access
                 const margin = parseFloat(this.originalChapterBarBlocks?.[0]?.style?.marginRight?.replace("px", ""));
                 if (margin) this.chapterMargin = margin;
             }
         }
 
-        const sortedSegments = this.segments.sort(({ segment: a }, { segment: b }) => {
-            // Sort longer segments before short segments to make shorter segments render later
+
+        const sortedSegments = this.segments?.sort(({ segment: a }, { segment: b }) => { // Ensure segments is not null
             return (b[1] - b[0]) - (a[1] - a[0]);
-        });
+        }) || [];
+
         for (const segment of sortedSegments) {
             if (segment.actionType === ActionType.Chapter) continue;
             const bar = this.createBar(segment);
-
-            this.container.appendChild(bar);
+            if (this.container) this.container.appendChild(bar); // Guard container
         }
 
-        this.createChaptersBar(this.segments.sort((a, b) => a.segment[0] - b.segment[0]));
+        this.createChaptersBar(this.segments?.sort((a, b) => a.segment[0] - b.segment[0]) || []); // Ensure segments is not null
 
-        if (chapterChevron) {
-            if (this.segments.some((segment) => segment.source === SponsorSourceType.YouTube)) {
-                chapterChevron.style.removeProperty("display");
-            } else if (this.segments) {
-                chapterChevron.style.display = "none";
+        if (!this.testMode) { // Guard DOM specific logic
+            const chapterChevron = this.getChapterChevron();
+            if (chapterChevron) {
+                if (this.segments?.some((segment) => segment.source === SponsorSourceType.YouTube)) { // Ensure segments is not null
+                    chapterChevron.style.removeProperty("display");
+                } else if (this.segments) {
+                    chapterChevron.style.display = "none";
+                }
             }
         }
     }
@@ -430,7 +465,7 @@ class PreviewBar {
     createBar(barSegment: PreviewBarSegment): HTMLLIElement {
         const { category, unsubmitted, segment, showLarger } = barSegment;
 
-        const bar = document.createElement('li');
+        const bar = document.createElement('li'); // This can run in tests
         bar.classList.add('previewbar');
         if (barSegment.requiredSegment) bar.classList.add("requiredSegment");
         if (barSegment.selectedSegment) bar.classList.add("selectedSegment");
@@ -438,10 +473,12 @@ class PreviewBar {
 
         const fullCategoryName = (unsubmitted ? 'preview-' : '') + category;
         bar.setAttribute('sponsorblock-category', fullCategoryName);
-
-        // Handled by setCategoryColorCSSVariables() of content.ts
+        
+        // Config access should be fine, barTypes might need mock in tests if not already
         bar.style.backgroundColor = `var(--sb-category-${fullCategoryName})`;
-        if (!this.onMobileYouTube) bar.style.opacity = Config.config.barTypes[fullCategoryName]?.opacity;
+        if (!this.onMobileYouTube && Config.config.barTypes[fullCategoryName]?.opacity) {
+             bar.style.opacity = Config.config.barTypes[fullCategoryName]?.opacity;
+        }
 
         bar.style.position = "absolute";
 
@@ -490,10 +527,9 @@ class PreviewBar {
     }
 
     createChaptersBar(segments: PreviewBarSegment[]): void {
-        if (!this.progressBar || !this.originalChapterBar || this.originalChapterBar.childElementCount <= 0) {
+        // Heavy DOM interaction, guard most if in test mode or if elements are missing
+        if (!this.testMode && (!this.progressBar || !this.originalChapterBar || this.originalChapterBar.childElementCount <= 0)) {
             if (this.originalChapterBar) this.originalChapterBar.style.removeProperty("display");
-
-            // Make sure other video types lose their chapter bar
             document.querySelectorAll(".sponsorBlockChapterBar").forEach((element) => element.remove());
             this.customChaptersBar = null;
             return;
@@ -502,19 +538,17 @@ class PreviewBar {
         const remakingBar = segments !== this.lastRenderedSegments;
         if (remakingBar) {
             this.lastRenderedSegments = segments;
-
-            // Merge overlapping chapters
             this.unfilteredChapterGroups = this.createChapterRenderGroups(segments);
         }
         
-        if ((segments.every((segments) => segments.source === SponsorSourceType.YouTube)
-            || (!Config.config.renderSegmentsAsChapters
-                && segments.every((segment) => segment.actionType !== ActionType.Chapter
-                    || segment.source === SponsorSourceType.YouTube)))
-            && !(hasAutogeneratedChapters() && !Config.config.showAutogeneratedChapters)) {
+        // Logic for deciding whether to show custom chapters or default to YouTube's
+        // This part is primarily logic and should be runnable in tests.
+        if ((segments.every((s) => s.source === SponsorSourceType.YouTube) ||
+            (!Config.config.renderSegmentsAsChapters && segments.every((s) => s.actionType !== ActionType.Chapter || s.source === SponsorSourceType.YouTube))) &&
+            !(hasAutogeneratedChapters() && !Config.config.showAutogeneratedChapters)) {
 
             if (this.customChaptersBar) this.customChaptersBar.style.display = "none";
-            this.originalChapterBar.style.removeProperty("display");
+            if (!this.testMode && this.originalChapterBar) this.originalChapterBar.style.removeProperty("display");
             return;
         }
 
@@ -524,78 +558,73 @@ class PreviewBar {
             if (filteredSegments.length !== segments.length) {
                 groups = this.createChapterRenderGroups(filteredSegments);
             }
-            this.chapterGroups = groups.filter((segment) => this.chapterGroupFilter(segment));
+            this.chapterGroups = groups?.filter((segment) => this.chapterGroupFilter(segment)); // Ensure groups is not null
 
-            if (groups.length !== this.chapterGroups.length) {
-                // Fix missing sections due to filtered segments
+            if (groups && this.chapterGroups && groups.length !== this.chapterGroups.length) {
                 for (let i = 1; i < this.chapterGroups.length; i++) {
                     if (this.chapterGroups[i].segment[0] !== this.chapterGroups[i - 1].segment[1]) {
-                        this.chapterGroups[i - 1].segment[1] = this.chapterGroups[i].segment[0]
+                        this.chapterGroups[i - 1].segment[1] = this.chapterGroups[i].segment[0];
                     }
                 }
             }
         } else {
             this.chapterGroups = this.unfilteredChapterGroups;
         }
-
-        if (this.chapterGroups.length === 0 && !Config.config.showAutogeneratedChapters && hasAutogeneratedChapters()) {
-            // Add placeholder chapter group for whole video
-            this.chapterGroups = [{
-                segment: [0, this.videoDuration],
-                originalDuration: 0,
-                actionType: null
-            }];
+        
+        if (this.chapterGroups && this.chapterGroups.length === 0 && !Config.config.showAutogeneratedChapters && hasAutogeneratedChapters()) {
+             this.chapterGroups = [{ segment: [0, this.videoDuration], originalDuration: 0, actionType: null }];
         }
 
         if (!this.chapterGroups || this.chapterGroups.length <= 0) {
             if (this.customChaptersBar) this.customChaptersBar.style.display = "none";
-            this.originalChapterBar.style.removeProperty("display");
+            if (!this.testMode && this.originalChapterBar) this.originalChapterBar.style.removeProperty("display");
             return;
         }
 
-        // Create it from cloning
-        let createFromScratch = false;
-        if (!this.customChaptersBar || !this.progressBar.contains(this.customChaptersBar)) {
-            // Clear anything remaining
-            document.querySelectorAll(".sponsorBlockChapterBar").forEach((element) => element.remove());
+        // Heavy DOM part starts here
+        if (this.testMode) return; // Bypass further DOM manipulation in test mode
 
-            createFromScratch = true;
-            this.customChaptersBar = this.originalChapterBar.cloneNode(true) as HTMLElement;
-            this.customChaptersBar.classList.add("sponsorBlockChapterBar");
+        let createFromScratch = false;
+        if (!this.customChaptersBar || (this.progressBar && !this.progressBar.contains(this.customChaptersBar))) {
+            document.querySelectorAll(".sponsorBlockChapterBar").forEach((element) => element.remove());
+            if (this.originalChapterBar) { // Ensure originalChapterBar exists before cloning
+                 createFromScratch = true;
+                 this.customChaptersBar = this.originalChapterBar.cloneNode(true) as HTMLElement;
+                 this.customChaptersBar.classList.add("sponsorBlockChapterBar");
+            } else {
+                return; // Cannot proceed without originalChapterBar
+            }
         }
+        
+        if (!this.customChaptersBar) return; // Should not happen if createFromScratch was true and successful
 
         this.customChaptersBar.style.display = "none";
         const originalSections = this.customChaptersBar.querySelectorAll(".ytp-chapter-hover-container");
         const originalSection = originalSections[0];
 
-        // For switching to a video with less chapters
         if (originalSections.length > this.chapterGroups.length) {
             for (let i = originalSections.length - 1; i >= this.chapterGroups.length; i--) {
-                this.customChaptersBar.removeChild(originalSections[i]);
+                if (this.customChaptersBar) this.customChaptersBar.removeChild(originalSections[i]);
             }
         }
 
-        // Modify it to have sections for each segment
         for (let i = 0; i < this.chapterGroups.length; i++) {
             const chapter = this.chapterGroups[i].segment;
             let newSection = originalSections[i] as HTMLElement;
-            if (!newSection) {
+            if (!newSection && originalSection) { // Ensure originalSection exists for cloning
                 newSection = originalSection.cloneNode(true) as HTMLElement;
-
                 this.firstTimeSetupChapterSection(newSection);
-                this.customChaptersBar.appendChild(newSection);
+                if (this.customChaptersBar) this.customChaptersBar.appendChild(newSection);
             } else if (createFromScratch) {
                 this.firstTimeSetupChapterSection(newSection);
             }
-
-            this.setupChapterSection(newSection, chapter[0], chapter[1], i !== this.chapterGroups.length - 1);
+            if (newSection) this.setupChapterSection(newSection, chapter[0], chapter[1], i !== this.chapterGroups.length - 1);
         }
 
-        // Hide old bar
-        this.originalChapterBar.style.display = "none";
-        this.customChaptersBar.style.removeProperty("display");
+        if (this.originalChapterBar) this.originalChapterBar.style.display = "none";
+        if (this.customChaptersBar) this.customChaptersBar.style.removeProperty("display");
 
-        if (createFromScratch) {
+        if (createFromScratch && this.progressBar && this.customChaptersBar) {
             if (this.container?.parentElement === this.progressBar) {
                 this.progressBar.insertBefore(this.customChaptersBar, this.container.nextSibling);
             } else {
@@ -603,12 +632,13 @@ class PreviewBar {
             }
         }
 
-        if (remakingBar) {
+        if (remakingBar && this.originalChapterBar && this.progressBar) {
             this.updateChapterAllMutation(this.originalChapterBar, this.progressBar, true);
         }
     }
 
     createChapterRenderGroups(segments: PreviewBarSegment[]): ChapterGroup[] {
+        if (!segments) return []; // Handle null input for segments
         const result: ChapterGroup[] = [];
 
         segments?.forEach((segment, index) => {
@@ -737,9 +767,10 @@ class PreviewBar {
     }
 
     private createChapterMutationObservers(): void {
-        if (!this.progressBar || !this.originalChapterBar) return;
+        if (this.testMode || !this.progressBar || !this.originalChapterBar) return; // Bypass in test mode or if elements missing
 
         const attributeObserver = new MutationObserver((mutations) => {
+            if (this.testMode) return; // Don't run mutation logic in tests
             const changes: Record<string, HTMLElement> = {};
             for (const mutation of mutations) {
                 const currentElement = mutation.target as HTMLElement;
@@ -1138,99 +1169,122 @@ class PreviewBar {
     }
 
     /**
-     * Decimal to time or time to decimal
+     * Decimal to time or time to decimal.
+     * This is the core conversion function.
+     * @param value The value to convert (either a time in seconds or a decimal representation of progress).
+     * @param isTime True if `value` is a time in seconds (convert time to decimal), false if `value` is a decimal (convert decimal to time).
      */
     decimalTimeConverter(value: number, isTime: boolean): number {
         const modifyTimelineEnabled = typeof Config !== 'undefined' && Config.config?.modifyTimelineAsIfSegmentsWerentThere;
         const durationToUse = modifyTimelineEnabled ? this.virtualVideoDuration : this.videoDuration;
 
-        // Defines if a segment should be considered "skipped" for timeline calculation purposes (affects virtual time conversion)
+        // Helper function to determine if a segment should be excluded from timeline length calculations
+        // when the virtual timeline is active.
         const isTimelineCalculationSkippable = (segment: PreviewBarSegment): boolean => {
-            if (!this.getCategorySkipOption) return false; // Guard if function not provided
+            if (!this.getCategorySkipOption) return false; 
             const skipOption = this.getCategorySkipOption(segment.category);
-            // This affects how time is converted. If a segment is ActionType.Skip and AutoSkip, it's removed from virtual time.
+            // Only ActionType.Skip segments with AutoSkip option affect the virtual timeline's length.
             return segment.actionType === ActionType.Skip && skipOption === CategorySkipOption.AutoSkip;
         };
 
-        // Special handling for time/decimal conversion when YouTube's native chapters are displayed
-        // AND the virtual timeline feature is OFF. This logic tries to match YouTube's non-linear
-        // chapter display behavior.
-        // This block is intentionally bypassed if `modifyTimelineEnabled` is true,
-        // as the virtual timeline has its own comprehensive conversion logic.
-        if (this.originalChapterBarBlocks?.length > 1 && this.existingChapters.length === this.originalChapterBarBlocks?.length && !modifyTimelineEnabled) {
+        // Path 1: Virtual timeline is OFF, AND native YouTube chapters are present and being used for mapping.
+        // This logic attempts to map time/decimals based on the visual widths of YouTube's chapter bars,
+        // which might not be perfectly linear with actual time durations.
+        // This path is intentionally skipped if `modifyTimelineEnabled` is true.
+        if (this.originalChapterBarBlocks?.length > 1 && 
+            this.existingChapters.length === this.originalChapterBarBlocks?.length && 
+            !modifyTimelineEnabled) {
+            
             const totalPixels = this.originalChapterBar.parentElement.clientWidth;
-            let pixelOffset = 0;
-            let lastCheckedChapter = -1;
+            let accumulatedPixelOffset = 0; // Renamed for clarity
+            let lastProcessedChapterIndex = -1; // Renamed for clarity
             for (let i = 0; i < this.originalChapterBarBlocks.length; i++) {
                 const chapterElement = this.originalChapterBarBlocks[i];
                 const widthPixels = parseFloat(chapterElement.style.width.replace("px", ""));
-
                 const marginPixels = chapterElement.style.marginRight ? parseFloat(chapterElement.style.marginRight.replace("px", "")) : 0;
-                if ((isTime && value >= this.existingChapters[i].segment[1])
-                        || (!isTime && value >= (pixelOffset + widthPixels + marginPixels) / totalPixels)) {
-                    pixelOffset += widthPixels + marginPixels;
-                    lastCheckedChapter = i;
+                const chapterVisualWidth = widthPixels + marginPixels;
+
+                // If converting time to decimal: Check if the target time `value` is beyond the current chapter.
+                // If converting decimal to time: Check if the target decimal `value` is beyond the current chapter's visual span.
+                if ((isTime && value >= this.existingChapters[i].segment[1]) || 
+                    (!isTime && value >= (accumulatedPixelOffset + chapterVisualWidth) / totalPixels)) {
+                    accumulatedPixelOffset += chapterVisualWidth;
+                    lastProcessedChapterIndex = i;
                 } else {
-                    break;
+                    break; // Target value falls within this chapter or before it.
                 }
             }
 
-            // The next chapter is the one we are currently inside of
-            const latestChapter = this.existingChapters[lastCheckedChapter + 1];
-            if (latestChapter) {
-                const latestWidth = parseFloat(this.originalChapterBarBlocks[lastCheckedChapter + 1].style.width.replace("px", ""));
-                const latestChapterDuration = latestChapter.segment[1] - latestChapter.segment[0];
+            const targetChapterIndex = lastProcessedChapterIndex + 1;
+            if (targetChapterIndex < this.existingChapters.length) {
+                const targetChapter = this.existingChapters[targetChapterIndex];
+                const targetChapterBlock = this.originalChapterBarBlocks[targetChapterIndex];
+                const targetChapterBlockWidth = parseFloat(targetChapterBlock.style.width.replace("px", ""));
+                const targetChapterDuration = targetChapter.segment[1] - targetChapter.segment[0];
 
-                if (isTime) { // time to decimal
-                    const percentageInCurrentChapter = (value - latestChapter.segment[0]) / latestChapterDuration;
-                    const sizeOfCurrentChapter = latestWidth / totalPixels;
-                    return Math.min(1, ((pixelOffset / totalPixels) + (percentageInCurrentChapter * sizeOfCurrentChapter)));
-                } else { // decimal to time
-                    const percentageInCurrentChapter = (value * totalPixels - pixelOffset) / latestWidth;
-                    return Math.max(0, latestChapter.segment[0] + (percentageInCurrentChapter * latestChapterDuration));
+                if (isTime) { // Time to Decimal conversion
+                    // Calculate how far (percentage-wise) the `value` (time) is into the targetChapter.
+                    const timeIntoChapter = value - targetChapter.segment[0];
+                    const percentageInChapter = (targetChapterDuration > 0) ? (timeIntoChapter / targetChapterDuration) : 0;
+                    // The decimal value is the sum of previous chapters' visual widths plus the proportional visual width into the current chapter.
+                    const decimalOffsetInChapter = percentageInChapter * (targetChapterBlockWidth / totalPixels);
+                    return Math.min(1, (accumulatedPixelOffset / totalPixels) + decimalOffsetInChapter);
+                } else { // Decimal to Time conversion
+                    // Calculate how far (time-wise) the `value` (decimal) is into the targetChapter's visual representation.
+                    const decimalIntoChapterBlock = (value * totalPixels - accumulatedPixelOffset) / targetChapterBlockWidth;
+                    const timeOffsetInChapter = decimalIntoChapterBlock * targetChapterDuration;
+                    return Math.max(0, targetChapter.segment[0] + timeOffsetInChapter);
                 }
             }
         }
 
-        // General logic using durationToUse (either actual or virtual)
-        if (durationToUse === 0 && isTime) return 0; // Avoid division by zero if converting time to decimal and duration is 0
-        if (durationToUse === 0 && !isTime) return 0; // Avoid issues if converting decimal to time and duration is 0
+        // Path 2: Virtual timeline is ON, or (Virtual timeline is OFF AND native chapters are NOT being used for mapping).
+        // Handles virtual timeline calculations or standard linear calculations if virtual timeline is off.
 
+        // Handle division by zero or invalid duration.
+        if (durationToUse === 0) return 0;
 
         if (modifyTimelineEnabled) {
-            if (isTime) { // Actual time to Virtual Decimal
-                // Convert an actual video time to its representation on the virtual timeline
-                let virtualTime = value;
-                let skippedDurationBeforeTime = 0;
-                if (this.segments) {
+            // Path 2a: Virtual Timeline is ON.
+            if (isTime) { 
+                // Actual Time to Virtual Decimal conversion.
+                // Iterate through all segments (sorted by start time) to find how much duration from "skippable" segments
+                // occurs before the given `value` (actual time).
+                let actualTimeToAccountFor = value;
+                let totalSkippedDurationBeforeValue = 0;
+                
+                if (this.segments) { // Ensure segments exist
                     const sortedSegments = [...this.segments].sort((a, b) => a.segment[0] - b.segment[0]);
                     for (const segment of sortedSegments) {
-                        if (segment.segment[1] <= value) { // Segment ends before or at the current time
-                            if (isTimelineCalculationSkippable(segment)) {
-                                skippedDurationBeforeTime += (segment.segment[1] - segment.segment[0]);
+                        if (segment.segment[0] >= actualTimeToAccountFor) break; // Processed all relevant segments
+                        
+                        if (isTimelineCalculationSkippable(segment)) {
+                            const segmentStart = segment.segment[0];
+                            const segmentEnd = segment.segment[1];
+                            // Calculate overlap between [0, actualTimeToAccountFor) and [segmentStart, segmentEnd)
+                            const overlapStart = Math.max(0, segmentStart);
+                            const overlapEnd = Math.min(actualTimeToAccountFor, segmentEnd);
+                            if (overlapEnd > overlapStart) {
+                                totalSkippedDurationBeforeValue += (overlapEnd - overlapStart);
                             }
-                        } else if (segment.segment[0] < value) { // Current time is within this segment
-                            if (isTimelineCalculationSkippable(segment)) {
-                                // Only count the skipped part of this segment that's before 'value'
-                                skippedDurationBeforeTime += (value - segment.segment[0]);
-                            }
-                            break; // No need to check further segments
-                        } else { // Segment starts after current time
-                            break;
                         }
                     }
                 }
-                virtualTime = value - skippedDurationBeforeTime;
-                return durationToUse > 0 ? Math.min(1, Math.max(0, virtualTime / durationToUse)) : 0;
-            } else { // Virtual Decimal to Actual Time
-                // This is the complex part: map virtual decimal back to actual video time
-                let targetVirtualTime = value * durationToUse;
-                let actualTime = 0;
-                let accumulatedVirtualTime = 0;
-                let lastActualTime = 0;
+                const virtualTime = value - totalSkippedDurationBeforeValue;
+                return Math.min(1, Math.max(0, virtualTime / durationToUse));
+
+            } else { 
+                // Virtual Decimal to Actual Time conversion.
+                // Iterate through segments, accumulating actual time and virtual time.
+                // When accumulated virtual time reaches the target virtual time (derived from `value` decimal),
+                // the corresponding accumulated actual time is the result.
+                const targetVirtualTime = value * durationToUse;
+                let currentActualTime = 0;
+                let currentVirtualTime = 0;
+                let lastActualTimeAnchor = 0; // Marks the end of the last processed segment or start of video.
 
                 if (!this.segments || this.segments.length === 0) {
-                    return Math.max(0, Math.min(this.videoDuration, targetVirtualTime));
+                    return Math.max(0, Math.min(this.videoDuration, targetVirtualTime)); // Linear mapping if no segments
                 }
 
                 const sortedSegments = [...this.segments].sort((a, b) => a.segment[0] - b.segment[0]);
@@ -1238,53 +1292,51 @@ class PreviewBar {
                 for (const segment of sortedSegments) {
                     const actualSegmentStart = segment.segment[0];
                     const actualSegmentEnd = segment.segment[1];
-                    const segmentDuration = actualSegmentEnd - actualSegmentStart;
-
-                    // Duration of the gap before this segment (if any)
-                    const gapDuration = actualSegmentStart - lastActualTime;
+                    
+                    // Account for the gap between the last segment and this one (non-skippable content).
+                    const gapDuration = actualSegmentStart - lastActualTimeAnchor;
                     if (gapDuration > 0) {
-                        const virtualGapDuration = gapDuration; // Gaps are 1:1 in virtual time
-                        if (accumulatedVirtualTime + virtualGapDuration >= targetVirtualTime) {
-                            // Target is within this non-skippable gap
-                            actualTime = lastActualTime + (targetVirtualTime - accumulatedVirtualTime);
-                            return Math.max(0, Math.min(this.videoDuration, actualTime));
+                        const virtualTimeInGap = gapDuration; // Gaps contribute 1:1 to virtual time.
+                        if (currentVirtualTime + virtualTimeInGap >= targetVirtualTime) {
+                            // Target falls within this gap.
+                            const timeNeededFromGap = targetVirtualTime - currentVirtualTime;
+                            return lastActualTimeAnchor + timeNeededFromGap;
                         }
-                        accumulatedVirtualTime += virtualGapDuration;
-                        actualTime += virtualGapDuration;
+                        currentVirtualTime += virtualTimeInGap;
+                        currentActualTime = actualSegmentStart; // currentActualTime jumps to start of segment
                     }
 
+                    // Process the current segment.
                     if (isTimelineCalculationSkippable(segment)) {
-                        // Skippable segments (AutoSkip + ActionType.Skip) don't add to virtual time
-                        // but they do advance actual time.
-                        actualTime = actualSegmentEnd;
+                        // This segment is skipped; it contributes to actual time but not virtual time.
+                        currentActualTime = actualSegmentEnd;
                     } else {
-                        // Non-skippable segments, or segments not meeting the timeline calculation criteria
-                        // (e.g. ManualSkip, Mute, POI, Full) contribute to virtual time.
-                        const virtualSegmentDuration = segmentDuration;
-                        if (accumulatedVirtualTime + virtualSegmentDuration >= targetVirtualTime) {
-                            // Target is within this non-skippable (visible) segment
-                            const timeIntoVirtualSegment = targetVirtualTime - accumulatedVirtualTime;
-                            actualTime = actualSegmentStart + timeIntoVirtualSegment;
-                            return Math.max(0, Math.min(this.videoDuration, actualTime));
+                        // This segment is NOT skipped; it contributes to both actual and virtual time.
+                        const virtualSegmentDuration = actualSegmentEnd - actualSegmentStart;
+                        if (currentVirtualTime + virtualSegmentDuration >= targetVirtualTime) {
+                            // Target falls within this non-skippable segment.
+                            const timeNeededFromSegment = targetVirtualTime - currentVirtualTime;
+                            return actualSegmentStart + timeNeededFromSegment;
                         }
-                        accumulatedVirtualTime += virtualSegmentDuration;
-                        actualTime = actualSegmentEnd;
+                        currentVirtualTime += virtualSegmentDuration;
+                        currentActualTime = actualSegmentEnd;
                     }
-                    lastActualTime = actualSegmentEnd;
+                    lastActualTimeAnchor = actualSegmentEnd;
                 }
 
-                // If targetVirtualTime is beyond all segments (or in a gap after the last segment)
-                if (targetVirtualTime > accumulatedVirtualTime) {
-                     actualTime = lastActualTime + (targetVirtualTime - accumulatedVirtualTime);
+                // If the targetVirtualTime is beyond all processed segments,
+                // it means it falls in the non-skippable area after the last segment.
+                if (targetVirtualTime > currentVirtualTime) {
+                    return currentActualTime + (targetVirtualTime - currentVirtualTime);
                 }
-                
-                return Math.max(0, Math.min(this.videoDuration, actualTime));
+                return currentActualTime; // Should be end of last segment if targetVirtualTime matched exactly
             }
         } else {
-            // Original logic when feature is disabled
-            if (isTime) {
-                return durationToUse > 0 ? Math.min(1, value / durationToUse) : 0;
-            } else {
+            // Path 2b: Virtual Timeline is OFF, and native chapters are NOT being used (or not present).
+            // Standard linear conversion.
+            if (isTime) { // Time to Decimal
+                return (durationToUse > 0) ? Math.min(1, value / durationToUse) : 0;
+            } else { // Decimal to Time
                 return Math.max(0, value * durationToUse);
             }
         }
