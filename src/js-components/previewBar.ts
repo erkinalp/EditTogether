@@ -1152,11 +1152,12 @@ class PreviewBar {
             return segment.actionType === ActionType.Skip && skipOption === CategorySkipOption.AutoSkip;
         };
 
+        // Special handling for time/decimal conversion when YouTube's native chapters are displayed
+        // AND the virtual timeline feature is OFF. This logic tries to match YouTube's non-linear
+        // chapter display behavior.
+        // This block is intentionally bypassed if `modifyTimelineEnabled` is true,
+        // as the virtual timeline has its own comprehensive conversion logic.
         if (this.originalChapterBarBlocks?.length > 1 && this.existingChapters.length === this.originalChapterBarBlocks?.length && !modifyTimelineEnabled) {
-            // This block handles YouTube's own chapter display logic, which might not align with virtual timeline.
-            // For now, let's assume this part is NOT affected by virtual timeline if modifyTimeline is OFF.
-            // If modifyTimeline IS ON, this specific logic might need to be bypassed or re-evaluated.
-            // For now, if modifyTimeline is ON, we skip this and use the general logic below.
             const totalPixels = this.originalChapterBar.parentElement.clientWidth;
             let pixelOffset = 0;
             let lastCheckedChapter = -1;

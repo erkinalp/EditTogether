@@ -371,7 +371,14 @@ function contentConfigUpdateListener(changes: StorageChangesObject) {
                 updateVisibilityOfPlayerControlsButton()
                 break;
             case "categorySelections":
+                // sponsorsLookup will fetch new segments based on category changes
+                // and then call updatePreviewBar internally.
                 sponsorsLookup(true, true);
+                break;
+            case "modifyTimelineAsIfSegmentsWerentThere": // Added this case
+                if (previewBar) {
+                    updatePreviewBar();
+                }
                 break;
             case "barTypes":
                 setCategoryColorCSSVariables();
