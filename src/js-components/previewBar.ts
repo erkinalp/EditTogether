@@ -1250,7 +1250,7 @@ class PreviewBar {
                 // Actual Time to Virtual Decimal conversion.
                 // Iterate through all segments (sorted by start time) to find how much duration from "skippable" segments
                 // occurs before the given `value` (actual time).
-                let actualTimeToAccountFor = value;
+                const actualTimeToAccountFor = value;
                 let totalSkippedDurationBeforeValue = 0;
                 
                 if (this.segments) { // Ensure segments exist
