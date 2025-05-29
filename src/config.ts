@@ -79,6 +79,7 @@ interface SBConfig {
     shownDeArrowPromotion: boolean;
     showZoomToFillError2: boolean;
     cleanPopup: boolean;
+    modifyTimelineAsIfSegmentsWerentThere: boolean; // Added
 
     // Used to cache calculated text color info
     categoryPillColors: {
@@ -339,6 +340,7 @@ const syncDefaults = {
     shownDeArrowPromotion: false,
     showZoomToFillError2: true,
     cleanPopup: false,
+    modifyTimelineAsIfSegmentsWerentThere: false, // Added
 
     categoryPillColors: {},
 

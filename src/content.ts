@@ -583,7 +583,8 @@ function createPreviewBar(): void {
 
     if (el) {
         const chapterVote = new ChapterVote(voteAsync);
-        previewBar = new PreviewBar(el, isOnMobileYouTube(), isOnInvidious(), isOnYTTV(), chapterVote, () => importExistingChapters(true));
+        // Pass the getCategorySelection function bound to the utils instance
+        previewBar = new PreviewBar(el, isOnMobileYouTube(), isOnInvidious(), isOnYTTV(), chapterVote, () => importExistingChapters(true), utils.getCategorySelection.bind(utils));
 
         updatePreviewBar();
     }

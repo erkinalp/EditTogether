@@ -363,6 +363,19 @@
 					<div class="small-description">__MSG_showTimeWithSkipsDescription__</div>
 				</div>
 
+				<div data-type="toggle" data-sync="modifyTimelineAsIfSegmentsWerentThere">
+					<div class="switch-container">
+						<label class="switch">
+							<input id="modifyTimelineCheckbox" type="checkbox">
+							<span class="slider round"></span>
+						</label>
+						<label class="switch-label" for="modifyTimelineCheckbox">
+							Adjust timeline to act as if auto-skipped segments don't exist (experimental)
+						</label>
+					</div>
+					<div class="small-description">When enabled, the timeline will visually shrink, and hover/click positions will map to the modified timeline. This only affects segments that are both ActionType.Skip and have their category set to AutoSkip.</div>
+				</div>
+
 				<div data-type="toggle" data-sync="cleanPopup" data-no-safari="true">
 					<div class="switch-container">
 						<label class="switch">

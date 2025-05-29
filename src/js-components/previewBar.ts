@@ -7,7 +7,7 @@ https://github.com/videosegments/videosegments/commits/f1e111bdfe231947800c6efdd
 
 import Config from "../config";
 import { ChapterVote } from "../render/ChapterVote";
-import { ActionType, Category, SegmentContainer, SponsorHideType, SponsorSourceType, SponsorTime } from "../types";
+import { ActionType, Category, CategorySkipOption, SegmentContainer, SponsorHideType, SponsorSourceType, SponsorTime } from "../types"; // Added CategorySkipOption
 import { partition } from "../utils/arrayUtils";
 import { DEFAULT_CATEGORY, shortCategoryName } from "../utils/categoryUtils";
 import { normalizeChapterName } from "../utils/exporter";
@@ -63,6 +63,7 @@ class PreviewBar {
     hasYouTubeChapters = false;
     existingChapters: PreviewBarSegment[] = [];
     videoDuration = 0;
+    virtualVideoDuration = 0; // Added
     updateExistingChapters: () => void;
     lastChapterUpdate = 0;
 
@@ -77,8 +78,19 @@ class PreviewBar {
     lastRenderedSegments: PreviewBarSegment[];
     unfilteredChapterGroups: ChapterGroup[];
     chapterGroups: ChapterGroup[];
+    private getCategorySkipOption: (category: Category) => CategorySkipOption | undefined;
 
-    constructor(parent: HTMLElement, onMobileYouTube: boolean, onInvidious: boolean, onYTTV: boolean, chapterVote: ChapterVote, updateExistingChapters: () => void, test=false) {
+
+    constructor(
+        parent: HTMLElement, 
+        onMobileYouTube: boolean, 
+        onInvidious: boolean, 
+        onYTTV: boolean, 
+        chapterVote: ChapterVote, 
+        updateExistingChapters: () => void, 
+        getCategorySkipOption: (category: Category) => CategorySkipOption | undefined, // Added
+        test=false
+    ) {
         if (test) return;
         this.container = document.createElement('ul');
         this.container.id = 'previewbar';
@@ -93,6 +105,7 @@ class PreviewBar {
         this.onYTTV = onYTTV;
         this.chapterVote = chapterVote;
         this.updateExistingChapters = updateExistingChapters;
+        this.getCategorySkipOption = getCategorySkipOption; // Added
 
         this.updatePageElements();
         this.createElement(parent);
@@ -299,6 +312,7 @@ class PreviewBar {
     set(segments: PreviewBarSegment[], videoDuration: number): void {
         this.segments = segments ?? [];
         this.videoDuration = videoDuration ?? 0;
+        this.virtualVideoDuration = this.videoDuration; // Initialize with actual duration
         this.hasYouTubeChapters = segments.some((segment) => segment.source === SponsorSourceType.YouTube);
 
         // Remove unnecessary original chapters if submitted replacements exist
@@ -325,6 +339,35 @@ class PreviewBar {
         }
 
         this.update();
+
+        // Placeholder for feature flag check
+        const isModifyTimelineEnabled = () => {
+            // In a real scenario, this would check Config.config.modifyTimelineAsIfSegmentsWerentThere
+            // For now, let's assume it's true for testing purposes if you want to see the effect.
+            // return true; 
+            return typeof Config !== 'undefined' && Config.config?.modifyTimelineAsIfSegmentsWerentThere;
+        };
+
+        // Defines if a segment should be considered "skipped" for timeline alteration
+        const isTimelineModifyingSegment = (segment: PreviewBarSegment): boolean => {
+            if (!this.getCategorySkipOption) return false; // Guard if function not provided
+            const skipOption = this.getCategorySkipOption(segment.category);
+            return segment.actionType === ActionType.Skip && skipOption === CategorySkipOption.AutoSkip;
+        };
+
+        if (isModifyTimelineEnabled()) {
+            let totalSkippedDuration = 0;
+            if (this.segments) {
+                for (const segment of this.segments) {
+                    if (isTimelineModifyingSegment(segment)) {
+                        totalSkippedDuration += (segment.segment[1] - segment.segment[0]);
+                    }
+                }
+            }
+            this.virtualVideoDuration = Math.max(0, this.videoDuration - totalSkippedDuration);
+        } else {
+            this.virtualVideoDuration = this.videoDuration;
+        }
     }
 
     private updatePageElements(): void {
@@ -401,14 +444,40 @@ class PreviewBar {
         if (!this.onMobileYouTube) bar.style.opacity = Config.config.barTypes[fullCategoryName]?.opacity;
 
         bar.style.position = "absolute";
-        const duration = Math.min(segment[1], this.videoDuration) - segment[0];
-        const startTime = segment[1] ? Math.min(this.videoDuration, segment[0]) : segment[0];
-        const endTime = Math.min(this.videoDuration, segment[1]);
-        bar.style.left = this.timeToPercentage(startTime);
 
-        if (duration > 0) {
-            bar.style.right = this.timeToRightPercentage(endTime);
+        const modifyTimelineEnabled = typeof Config !== 'undefined' && Config.config?.modifyTimelineAsIfSegmentsWerentThere;
+
+        // Defines if a segment bar should be collapsed (made zero-width) on the virtual timeline
+        const shouldCollapseSegmentBar = (segment: PreviewBarSegment): boolean => {
+            if (!this.getCategorySkipOption) return false;
+            const skipOption = this.getCategorySkipOption(segment.category);
+            // Only collapse ActionType.Skip segments that are set to AutoSkip
+            return segment.actionType === ActionType.Skip && skipOption === CategorySkipOption.AutoSkip;
+        };
+
+        const actualStartTime = segment[1] ? Math.min(this.videoDuration, segment[0]) : segment[0];
+        const actualEndTime = Math.min(this.videoDuration, segment[1]);
+        const actualDuration = actualEndTime - actualStartTime;
+
+        if (modifyTimelineEnabled && shouldCollapseSegmentBar(barSegment)) {
+            // Skippable (AutoSkip + ActionType.Skip) segments are rendered with zero effective width.
+            // Their 'position' is at their virtual start time.
+            // this.timeToPercentage will convert actualStartTime to its virtual percentage.
+            bar.style.left = this.timeToPercentage(actualStartTime);
+            // Set right to ensure zero width by using the same time for the end point's "right" calculation.
+            bar.style.right = this.timeToRightPercentage(actualStartTime);
+        } else {
+            // For non-skippable segments, or if timeline modification is disabled.
+            // timeToPercentage/RightPercentage will use virtualVideoDuration and perform time mapping if enabled.
+            // We pass the *actual* start and end times of the segment.
+            bar.style.left = this.timeToPercentage(actualStartTime);
+            if (actualDuration > 0) {
+                bar.style.right = this.timeToRightPercentage(actualEndTime);
+            } else { // Zero duration segment, make it end where it started.
+                 bar.style.right = this.timeToRightPercentage(actualStartTime);
+            }
         }
+
         if (this.chapterFilter(barSegment) && segment[1] < this.videoDuration) {
             bar.style.marginRight = `${this.chapterMargin}px`;
         }
@@ -1041,12 +1110,15 @@ class PreviewBar {
         return segment.segment.length === 2 && this.intervalToDecimal(segment.segment[0], segment.segment[1]) > MIN_CHAPTER_SIZE;
     }
 
-    intervalToPercentage(startTime: number, endTime: number) {
-        return `${this.intervalToDecimal(startTime, endTime) * 100}%`;
+    intervalToPercentage(actualStartTime: number, actualEndTime: number) {
+        return `${this.intervalToDecimal(actualStartTime, actualEndTime) * 100}%`;
     }
 
-    intervalToDecimal(startTime: number, endTime: number) {
-        return (this.timeToDecimal(endTime) - this.timeToDecimal(startTime));
+    intervalToDecimal(actualStartTime: number, actualEndTime: number): number {
+        // modifyTimelineEnabled check is implicitly handled by timeToDecimal
+        const virtualStartDecimal = this.timeToDecimal(actualStartTime);
+        const virtualEndDecimal = this.timeToDecimal(actualEndTime);
+        return virtualEndDecimal - virtualStartDecimal;
     }
 
     timeToPercentage(time: number): string {
@@ -1069,8 +1141,22 @@ class PreviewBar {
      * Decimal to time or time to decimal
      */
     decimalTimeConverter(value: number, isTime: boolean): number {
-        if (this.originalChapterBarBlocks?.length > 1 && this.existingChapters.length === this.originalChapterBarBlocks?.length) {
-            // Parent element to still work when display: none
+        const modifyTimelineEnabled = typeof Config !== 'undefined' && Config.config?.modifyTimelineAsIfSegmentsWerentThere;
+        const durationToUse = modifyTimelineEnabled ? this.virtualVideoDuration : this.videoDuration;
+
+        // Defines if a segment should be considered "skipped" for timeline calculation purposes (affects virtual time conversion)
+        const isTimelineCalculationSkippable = (segment: PreviewBarSegment): boolean => {
+            if (!this.getCategorySkipOption) return false; // Guard if function not provided
+            const skipOption = this.getCategorySkipOption(segment.category);
+            // This affects how time is converted. If a segment is ActionType.Skip and AutoSkip, it's removed from virtual time.
+            return segment.actionType === ActionType.Skip && skipOption === CategorySkipOption.AutoSkip;
+        };
+
+        if (this.originalChapterBarBlocks?.length > 1 && this.existingChapters.length === this.originalChapterBarBlocks?.length && !modifyTimelineEnabled) {
+            // This block handles YouTube's own chapter display logic, which might not align with virtual timeline.
+            // For now, let's assume this part is NOT affected by virtual timeline if modifyTimeline is OFF.
+            // If modifyTimeline IS ON, this specific logic might need to be bypassed or re-evaluated.
+            // For now, if modifyTimeline is ON, we skip this and use the general logic below.
             const totalPixels = this.originalChapterBar.parentElement.clientWidth;
             let pixelOffset = 0;
             let lastCheckedChapter = -1;
@@ -1094,21 +1180,112 @@ class PreviewBar {
                 const latestWidth = parseFloat(this.originalChapterBarBlocks[lastCheckedChapter + 1].style.width.replace("px", ""));
                 const latestChapterDuration = latestChapter.segment[1] - latestChapter.segment[0];
 
-                if (isTime) {
+                if (isTime) { // time to decimal
                     const percentageInCurrentChapter = (value - latestChapter.segment[0]) / latestChapterDuration;
                     const sizeOfCurrentChapter = latestWidth / totalPixels;
                     return Math.min(1, ((pixelOffset / totalPixels) + (percentageInCurrentChapter * sizeOfCurrentChapter)));
-                } else {
+                } else { // decimal to time
                     const percentageInCurrentChapter = (value * totalPixels - pixelOffset) / latestWidth;
                     return Math.max(0, latestChapter.segment[0] + (percentageInCurrentChapter * latestChapterDuration));
                 }
             }
         }
 
-        if (isTime) {
-            return Math.min(1, value / this.videoDuration);
+        // General logic using durationToUse (either actual or virtual)
+        if (durationToUse === 0 && isTime) return 0; // Avoid division by zero if converting time to decimal and duration is 0
+        if (durationToUse === 0 && !isTime) return 0; // Avoid issues if converting decimal to time and duration is 0
+
+
+        if (modifyTimelineEnabled) {
+            if (isTime) { // Actual time to Virtual Decimal
+                // Convert an actual video time to its representation on the virtual timeline
+                let virtualTime = value;
+                let skippedDurationBeforeTime = 0;
+                if (this.segments) {
+                    const sortedSegments = [...this.segments].sort((a, b) => a.segment[0] - b.segment[0]);
+                    for (const segment of sortedSegments) {
+                        if (segment.segment[1] <= value) { // Segment ends before or at the current time
+                            if (isTimelineCalculationSkippable(segment)) {
+                                skippedDurationBeforeTime += (segment.segment[1] - segment.segment[0]);
+                            }
+                        } else if (segment.segment[0] < value) { // Current time is within this segment
+                            if (isTimelineCalculationSkippable(segment)) {
+                                // Only count the skipped part of this segment that's before 'value'
+                                skippedDurationBeforeTime += (value - segment.segment[0]);
+                            }
+                            break; // No need to check further segments
+                        } else { // Segment starts after current time
+                            break;
+                        }
+                    }
+                }
+                virtualTime = value - skippedDurationBeforeTime;
+                return durationToUse > 0 ? Math.min(1, Math.max(0, virtualTime / durationToUse)) : 0;
+            } else { // Virtual Decimal to Actual Time
+                // This is the complex part: map virtual decimal back to actual video time
+                let targetVirtualTime = value * durationToUse;
+                let actualTime = 0;
+                let accumulatedVirtualTime = 0;
+                let lastActualTime = 0;
+
+                if (!this.segments || this.segments.length === 0) {
+                    return Math.max(0, Math.min(this.videoDuration, targetVirtualTime));
+                }
+
+                const sortedSegments = [...this.segments].sort((a, b) => a.segment[0] - b.segment[0]);
+
+                for (const segment of sortedSegments) {
+                    const actualSegmentStart = segment.segment[0];
+                    const actualSegmentEnd = segment.segment[1];
+                    const segmentDuration = actualSegmentEnd - actualSegmentStart;
+
+                    // Duration of the gap before this segment (if any)
+                    const gapDuration = actualSegmentStart - lastActualTime;
+                    if (gapDuration > 0) {
+                        const virtualGapDuration = gapDuration; // Gaps are 1:1 in virtual time
+                        if (accumulatedVirtualTime + virtualGapDuration >= targetVirtualTime) {
+                            // Target is within this non-skippable gap
+                            actualTime = lastActualTime + (targetVirtualTime - accumulatedVirtualTime);
+                            return Math.max(0, Math.min(this.videoDuration, actualTime));
+                        }
+                        accumulatedVirtualTime += virtualGapDuration;
+                        actualTime += virtualGapDuration;
+                    }
+
+                    if (isTimelineCalculationSkippable(segment)) {
+                        // Skippable segments (AutoSkip + ActionType.Skip) don't add to virtual time
+                        // but they do advance actual time.
+                        actualTime = actualSegmentEnd;
+                    } else {
+                        // Non-skippable segments, or segments not meeting the timeline calculation criteria
+                        // (e.g. ManualSkip, Mute, POI, Full) contribute to virtual time.
+                        const virtualSegmentDuration = segmentDuration;
+                        if (accumulatedVirtualTime + virtualSegmentDuration >= targetVirtualTime) {
+                            // Target is within this non-skippable (visible) segment
+                            const timeIntoVirtualSegment = targetVirtualTime - accumulatedVirtualTime;
+                            actualTime = actualSegmentStart + timeIntoVirtualSegment;
+                            return Math.max(0, Math.min(this.videoDuration, actualTime));
+                        }
+                        accumulatedVirtualTime += virtualSegmentDuration;
+                        actualTime = actualSegmentEnd;
+                    }
+                    lastActualTime = actualSegmentEnd;
+                }
+
+                // If targetVirtualTime is beyond all segments (or in a gap after the last segment)
+                if (targetVirtualTime > accumulatedVirtualTime) {
+                     actualTime = lastActualTime + (targetVirtualTime - accumulatedVirtualTime);
+                }
+                
+                return Math.max(0, Math.min(this.videoDuration, actualTime));
+            }
         } else {
-            return Math.max(0, value * this.videoDuration);
+            // Original logic when feature is disabled
+            if (isTime) {
+                return durationToUse > 0 ? Math.min(1, value / durationToUse) : 0;
+            } else {
+                return Math.max(0, value * durationToUse);
+            }
         }
     }
 
