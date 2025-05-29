@@ -1195,9 +1195,15 @@ class PreviewBar {
             this.existingChapters.length === this.originalChapterBarBlocks?.length && 
             !modifyTimelineEnabled) {
             
-            const totalPixels = this.originalChapterBar.parentElement.clientWidth;
-            let accumulatedPixelOffset = 0; // Renamed for clarity
-            let lastProcessedChapterIndex = -1; // Renamed for clarity
+            // Ensure parentElement and clientWidth are available, especially for tests.
+            const totalPixels = this.originalChapterBar?.parentElement?.clientWidth;
+            if (!totalPixels) { // Fallback to linear if parentElement or clientWidth is missing
+                // This fallback path was not explicitly in the original, adding for robustness.
+                 if (isTime) { return (this.videoDuration > 0) ? Math.min(1, value / this.videoDuration) : 0;}
+                 else { return Math.max(0, value * this.videoDuration); }
+            }
+            let accumulatedPixelOffset = 0; 
+            let lastProcessedChapterIndex = -1; 
             for (let i = 0; i < this.originalChapterBarBlocks.length; i++) {
                 const chapterElement = this.originalChapterBarBlocks[i];
                 const widthPixels = parseFloat(chapterElement.style.width.replace("px", ""));
@@ -1298,17 +1304,63 @@ class PreviewBar {
                     if (gapDuration > 0) {
                         const virtualTimeInGap = gapDuration; // Gaps contribute 1:1 to virtual time.
                         if (currentVirtualTime + virtualTimeInGap >= targetVirtualTime) {
-                            // Target falls within this gap.
+                            // Target is within this non-skippable gap.
+                            // Check if target lands exactly at the end of this gap (start of the current segment)
+                            // AND if the current segment is skippable.
+                            const INTERNAL_EPSILON = 0.0000001; // For floating point comparisons
+                            if (Math.abs((currentVirtualTime + virtualTimeInGap) - targetVirtualTime) < INTERNAL_EPSILON &&
+                                isTimelineCalculationSkippable(segment)) {
+                                // Target is at the exact start of a skippable segment's virtual representation.
+                                // We need to jump to the end of this skippable segment, and any chained ones.
+                                let effectiveActualEndTime = actualSegmentEnd;
+                                let nextSegmentIndex = sortedSegments.indexOf(segment) + 1;
+                                while (nextSegmentIndex < sortedSegments.length) {
+                                    const nextSeg = sortedSegments[nextSegmentIndex];
+                                    // Check if next segment starts exactly where the current one ends and is also skippable
+                                    if (Math.abs(nextSeg.segment[0] - effectiveActualEndTime) < INTERNAL_EPSILON && 
+                                        isTimelineCalculationSkippable(nextSeg)) {
+                                        effectiveActualEndTime = nextSeg.segment[1];
+                                        nextSegmentIndex++;
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                return effectiveActualEndTime;
+                            }
+                            // Otherwise, target is genuinely within the gap.
                             const timeNeededFromGap = targetVirtualTime - currentVirtualTime;
                             return lastActualTimeAnchor + timeNeededFromGap;
                         }
                         currentVirtualTime += virtualTimeInGap;
-                        currentActualTime = actualSegmentStart; // currentActualTime jumps to start of segment
+                        currentActualTime = actualSegmentStart; 
+                    } else {
+                         currentActualTime = actualSegmentStart; // No gap, actual time is start of current segment
                     }
 
                     // Process the current segment.
                     if (isTimelineCalculationSkippable(segment)) {
-                        // This segment is skipped; it contributes to actual time but not virtual time.
+                        // If the targetVirtualTime was already passed or is met exactly by currentVirtualTime
+                        // before considering this skippable segment, it means the click was effectively
+                        // on or before the virtual point this skippable segment occupies.
+                        // The actual time should then be the end of this skippable segment.
+                        if (targetVirtualTime <= currentVirtualTime) {
+                             // Similar to the gap logic, check for chained skippables starting exactly at actualSegmentEnd
+                            let effectiveActualEndTime = actualSegmentEnd;
+                            let nextSegmentIndex = sortedSegments.indexOf(segment) + 1;
+                            const INTERNAL_EPSILON = 0.0000001;
+                            while (nextSegmentIndex < sortedSegments.length) {
+                                const nextSeg = sortedSegments[nextSegmentIndex];
+                                if (Math.abs(nextSeg.segment[0] - effectiveActualEndTime) < INTERNAL_EPSILON && 
+                                    isTimelineCalculationSkippable(nextSeg)) {
+                                    effectiveActualEndTime = nextSeg.segment[1];
+                                    nextSegmentIndex++;
+                                } else {
+                                    break;
+                                }
+                            }
+                            return effectiveActualEndTime;
+                        }
+                        // This segment is skipped; it contributes to actual time but no virtual time.
                         currentActualTime = actualSegmentEnd;
                     } else {
                         // This segment is NOT skipped; it contributes to both actual and virtual time.
