@@ -1,49 +1,41 @@
 import * as React from "react";
 import { createRoot } from 'react-dom/client';
 
-import Config, { generateDebugDetails } from "./config";
+import Config from "./config/config";
+import * as CompileConfig from "../config.json";
 import * as invidiousList from "../ci/invidiouslist.json";
 
 // Make the config public for debugging purposes
-window.SB = Config;
+window["CB"] = Config;
 
-import Utils from "./utils";
-import CategoryChooser from "./render/CategoryChooser";
-import UnsubmittedVideos from "./render/UnsubmittedVideos";
-import KeybindComponent from "./components/options/KeybindComponent";
+import KeybindComponent from "./options/KeybindComponent";
 import { showDonationLink } from "./utils/configUtils";
-import { localizeHtmlPage } from "../maze-utils/src/setup";
 import { StorageChangesObject } from "../maze-utils/src/config";
 import { getHash } from "../maze-utils/src/hash";
-import { isFirefoxOrSafari } from "../maze-utils/src";
-import { asyncRequestToServer } from "./utils/requests";
-const utils = new Utils();
+import { isFirefoxOrSafari, waitFor } from "../maze-utils/src";
+import { sendRequestToServer } from "./utils/requests";
+import { logError } from "./utils/logger";
+import ChannelOverrides from "./options/ChannelOverrides";
+import { getLicenseKey, isActivated } from "./license/license";
+import { localizeHtmlPageWithFormatting } from "./titles/titleFormatter";
+import CasualChoice from "./options/CasualChoice";
 let embed = false;
 
-const categoryChoosers: CategoryChooser[] = [];
-const unsubmittedVideos: UnsubmittedVideos[] = [];
-
-if (document.readyState === "complete") {
-    init();
-} else {
-    document.addEventListener("DOMContentLoaded", init);
-}
+window.addEventListener('DOMContentLoaded', () => void init());
 
 async function init() {
-    localizeHtmlPage();
-
     // selected tab
     if (location.hash != "") {
         const substr = location.hash.slice(1);
         let menuItem = document.querySelector(`[data-for='${substr}']`);
         if (menuItem == null)
             menuItem = document.querySelector(`[data-for='behavior']`);
-        menuItem.classList.add("selected");
+        menuItem!.classList.add("selected");
     } else {
-        document.querySelector(`[data-for='behavior']`).classList.add("selected");
+        document.querySelector(`[data-for='behavior']`)!.classList.add("selected");
     }
 
-    document.getElementById("version").innerText = "v. " + chrome.runtime.getManifest().version;
+    document.getElementById("version")!.innerText = "v. " + chrome.runtime.getManifest().version;
 
     // Remove header if needed
     if (window.location.hash === "#embed") {
@@ -52,7 +44,7 @@ async function init() {
             element.classList.add("hidden");
         }
 
-        document.getElementById("options").classList.add("embed");
+        document.getElementById("options")!.classList.add("embed");
         createStickyHeader();
     }
 
@@ -60,83 +52,89 @@ async function init() {
         Config.configSyncListeners.push(optionsConfigUpdateListener);
     }
 
-    if (!Config.configLocalListeners.includes(optionsLocalConfigUpdateListener)) {
-        Config.configLocalListeners.push(optionsLocalConfigUpdateListener);
+    await waitFor(() => Config.isReady(), 1000, 1);
+    await localizeHtmlPageWithFormatting();
+
+    if (!isActivated()) {
+        chrome.runtime.sendMessage({ message: "openPayment" }, () => window.close());
+        return;
     }
 
-    await utils.wait(() => Config.config !== null);
-
-    if (!Config.config.darkMode) {
+    if (!Config.config!.darkMode) {
         document.documentElement.setAttribute("data-theme", "light");
     }
 
     const donate = document.getElementById("sbDonate");
-    donate.addEventListener("click", () => Config.config.donateClicked = Config.config.donateClicked + 1);
-    if (!showDonationLink()) {
-        donate.classList.add("hidden");
+    donate!.addEventListener("click", () => Config.config!.donateClicked = Config.config!.donateClicked + 1);
+    if (showDonationLink()) {
+        donate!.classList.remove("hidden");
     }
 
+    const viewLicenseKey = document.getElementById("licenseKeyButton");
+    getLicenseKey().then((licenseKey) => {
+        if (licenseKey) {
+            const licenseKeyElement = document.getElementById("licenseKey");
+            licenseKeyElement!.innerText = licenseKey;
 
-    const skipToHighlightKeybind = document.querySelector(`[data-sync="skipToHighlightKeybind"] .optionLabel`) as HTMLElement;
-    skipToHighlightKeybind.innerText = `${chrome.i18n.getMessage("skip_to_category").replace("{0}", chrome.i18n.getMessage("category_poi_highlight")).replace("?", "")}:`;
+            const sharingText = document.getElementById("sharingLicense");
 
+            viewLicenseKey!.classList.remove("hidden");
+            viewLicenseKey!.addEventListener("click", () => {
+                licenseKeyElement!.classList.toggle("hidden");
+                sharingText!.classList.toggle("hidden");
+            });
+        }
+    }).catch(console.error);
+    
     // Set all of the toggle options to the correct option
-    const optionsContainer = document.getElementById("options");
-    const optionsElements = optionsContainer.querySelectorAll("*");
+    const optionsContainer = document.getElementById("options")!;
+    const optionsElements = optionsContainer!.querySelectorAll("*");
 
     for (let i = 0; i < optionsElements.length; i++) {
-        const dependentOnName = optionsElements[i].getAttribute("data-dependent-on");
-        const dependentOn = optionsContainer.querySelector(`[data-sync='${dependentOnName}']`);
+        const dependentOnName = optionsElements[i].getAttribute("data-dependent-on")!;
+        const dependentOn = optionsContainer!.querySelector(`[data-sync='${dependentOnName}']`);
         let isDependentOnReversed = false;
         if (dependentOn)
             isDependentOnReversed = dependentOn.getAttribute("data-toggle-type") === "reverse" || optionsElements[i].getAttribute("data-dependent-on-inverted") === "true";
 
-        if (await shouldHideOption(optionsElements[i]) || (dependentOn && (isDependentOnReversed ? Config.config[dependentOnName] : !Config.config[dependentOnName]))) {
+        const dependOnSelectorName = optionsElements[i].getAttribute("data-dependent-on-selector");
+        const dependOnSelectorValue = optionsElements[i].getAttribute("data-dependent-on-selector-value");
+        const dependOnSelectorValue2 = optionsElements[i].getAttribute("data-dependent-on-selector-value-2");
+
+        if (await shouldHideOption(optionsElements[i]) 
+                || (dependentOn && (isDependentOnReversed ? Config.config![dependentOnName] : !Config.config![dependentOnName]))
+                || (dependOnSelectorName && dependOnSelectorValue 
+                        && String(Config.config![dependOnSelectorName]) !== dependOnSelectorValue
+                        && (!dependOnSelectorValue2 || String(Config.config![dependOnSelectorName]) !== dependOnSelectorValue2))) {
             optionsElements[i].classList.add("hidden", "hiding");
-            if (!dependentOn) {
-                if (optionsElements[i].getAttribute("data-no-safari") === "true" && optionsElements[i].id === "support-invidious") {
-                    // Put message about being disabled on safari
-                    const infoBox = document.createElement("div");
-                    infoBox.innerText = chrome.i18n.getMessage("invidiousDisabledSafari");
-                    
-                    const link = document.createElement("a");
-                    link.style.display = "block";
-                    const url = "https://bugs.webkit.org/show_bug.cgi?id=290508";
-                    link.href = url;
-                    link.innerText = url;
-
-                    infoBox.appendChild(link);
-
-                    optionsElements[i].parentElement.insertBefore(infoBox, optionsElements[i].nextSibling);
-                }
-
+            if (!dependentOn && !dependOnSelectorName)
                 continue;
-            }
         }
 
-        const option = optionsElements[i].getAttribute("data-sync");
+        const option = optionsElements[i].getAttribute("data-sync")!;
 
         switch (optionsElements[i].getAttribute("data-type")) {
             case "toggle": {
-                const optionResult = Config.config[option];
+                const optionResult = Config.config![option!];
 
-                const checkbox = optionsElements[i].querySelector("input");
+                const checkbox = optionsElements[i].querySelector("input")!;
                 const reverse = optionsElements[i].getAttribute("data-toggle-type") === "reverse";
 
-                const confirmMessage = optionsElements[i].getAttribute("data-confirm-message");
+                const confirmMessage = optionsElements[i].getAttribute("data-confirm-message")!;
                 const confirmOnTrue = optionsElements[i].getAttribute("data-confirm-on") !== "false";
 
                 if (optionResult != undefined)
-                    checkbox.checked =  reverse ? !optionResult : optionResult;
+                    checkbox!.checked =  reverse ? !optionResult : optionResult;
 
                 // See if anything extra should be run first time
                 switch (option) {
                     case "supportInvidious":
-                        invidiousInit(checkbox, option);
+                        invidiousInit(checkbox!, option);
                         break;
                 }
 
                 // Add click listener
+                // eslint-disable-next-line @typescript-eslint/no-misused-promises
                 checkbox.addEventListener("click", async () => {
                     // Confirm if required
                     if (confirmMessage && ((confirmOnTrue && checkbox.checked) || (!confirmOnTrue && !checkbox.checked))
@@ -145,38 +143,24 @@ async function init() {
                         return;
                     }
 
-                    Config.config[option] = reverse ? !checkbox.checked : checkbox.checked;
+                    Config.config![option] = reverse ? !checkbox.checked : checkbox.checked;
 
                     // See if anything extra must be run
                     switch (option) {
                         case "supportInvidious":
-                            invidiousOnClick(checkbox, option);
-                            break;
-                        case "disableAutoSkip":
-                            if (!checkbox.checked) {
-                                // Enable the notice
-                                Config.config["dontShowNotice"] = false;
-
-                                const showNoticeSwitch = <HTMLInputElement> document.querySelector("[data-sync='dontShowNotice'] > div > label > input");
-                                showNoticeSwitch.checked = true;
-                            }
+                            void invidiousOnClick(checkbox, option);
                             break;
                         case "showDonationLink":
                             if (checkbox.checked)
-                                document.getElementById("sbDonate").classList.add("hidden");
+                                document.getElementById("sbDonate")!.classList.add("hidden");
                             else
-                                document.getElementById("sbDonate").classList.remove("hidden");
+                                document.getElementById("sbDonate")!.classList.remove("hidden");
                             break;
                         case "darkMode":
                             if (checkbox.checked) {
                                 document.documentElement.setAttribute("data-theme", "dark");
                             } else {
                                 document.documentElement.setAttribute("data-theme", "light");
-                            }
-                            break;
-                        case "trackDownvotes":
-                            if (!checkbox.checked) {
-                                Config.local.downvotedSegments = {};
                             }
                             break;
                     }
@@ -201,11 +185,13 @@ async function init() {
 
                 const textChangeSetButton = <HTMLElement> optionsElements[i].querySelector(".text-change-set");
 
-                textChangeInput.value = Config.config[option];
+                textChangeInput.value = Config.config![option];
 
+                // eslint-disable-next-line @typescript-eslint/no-misused-promises
                 textChangeSetButton.addEventListener("click", async () => {
                     // See if anything extra must be done
                     switch (option) {
+                        case "thumbnailServerAddress":
                         case "serverAddress": {
                             const result = validateServerAddress(textChangeInput.value);
 
@@ -231,7 +217,7 @@ async function init() {
                         }
                     }
 
-                    Config.config[option] = textChangeInput.value;
+                    Config.config![option] = textChangeInput.value;
                 });
 
                 // Reset to the default if needed
@@ -239,22 +225,22 @@ async function init() {
                 textChangeResetButton.addEventListener("click", () => {
                     if (!confirm(chrome.i18n.getMessage("areYouSureReset"))) return;
 
-                    Config.config[option] = Config.syncDefaults[option];
+                    Config.config![option] = Config.syncDefaults[option];
 
-                    textChangeInput.value = Config.config[option];
+                    textChangeInput.value = Config.config![option];
                 });
 
                 break;
             }
             case "private-text-change": {
-                const button = optionsElements[i].querySelector(".trigger-button");
+                const button = optionsElements[i].querySelector(".trigger-button")!;
                 button.addEventListener("click", () => activatePrivateTextChange(<HTMLElement> optionsElements[i]));
 
                 if (option == "*")  {
-                    const downloadButton = optionsElements[i].querySelector(".download-button");
+                    const downloadButton = optionsElements[i].querySelector(".download-button")!;
                     downloadButton.addEventListener("click", () => downloadConfig(optionsElements[i]));
 
-                    const uploadButton = optionsElements[i].querySelector(".upload-button");
+                    const uploadButton = optionsElements[i].querySelector(".upload-button")!;
                     uploadButton.addEventListener("change", (e) => uploadConfig(e, optionsElements[i] as HTMLElement));
                 }
 
@@ -268,8 +254,8 @@ async function init() {
                 break;
             }
             case "button-press": {
-                const actionButton = optionsElements[i].querySelector(".trigger-button");
-                const confirmMessage = optionsElements[i].getAttribute("data-confirm-message");
+                const actionButton = optionsElements[i].querySelector(".trigger-button")!;
+                const confirmMessage = optionsElements[i].getAttribute("data-confirm-message")!;
 
                 actionButton.addEventListener("click", () => {
                     if (confirmMessage !== null && !confirm(chrome.i18n.getMessage(confirmMessage))) {
@@ -289,7 +275,7 @@ async function init() {
                 break;
             }
             case "keybind-change": {
-                const root = createRoot(optionsElements[i].querySelector("div"));
+                const root = createRoot(optionsElements[i].querySelector("div")!);
                 root.render(React.createElement(KeybindComponent, {option: option}));
                 break;
             }
@@ -298,8 +284,8 @@ async function init() {
                 break;
             }
             case "number-change": {
-                const configValue = Config.config[option];
-                const numberInput = optionsElements[i].querySelector("input");
+                const configValue = Config.config![option];
+                const numberInput = optionsElements[i].querySelector("input")!;
 
                 if (isNaN(configValue) || configValue < 0) {
                     numberInput.value = Config.syncDefaults[option];
@@ -307,30 +293,46 @@ async function init() {
                     numberInput.value = configValue;
                 }
 
-                numberInput.addEventListener("input", () => {
-                    Config.config[option] = numberInput.value;
+                numberInput!.addEventListener("input", () => {
+                    Config.config![option] = parseFloat(numberInput.value);
                 });
 
                 break;
             }
             case "selector": {
-                const configValue = Config.config[option];
+                const configValue = Config.config![option];
                 const selectorElement = optionsElements[i].querySelector(".selector-element") as HTMLSelectElement;
                 selectorElement.value = configValue;
 
-                selectorElement.addEventListener("change", () => {
+                // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                selectorElement.addEventListener("change", async () => {
                     let value: string | number = selectorElement.value;
                     if (!isNaN(Number(value))) value = Number(value);
 
-                    Config.config[option] = value;
+                    Config.config![option] = value;
+
+                    // If other options depend on this, hide/show them
+                    const dependents = optionsContainer.querySelectorAll(`[data-dependent-on-selector='${option}']`);
+                    for (let j = 0; j < dependents.length; j++) {
+                        const dependOnValue = dependents[j].getAttribute("data-dependent-on-selector-value");
+                        const dependOnValue2 = dependents[j].getAttribute("data-dependent-on-selector-value-2");
+                        if (!await shouldHideOption(dependents[j])
+                                && (String(value) === dependOnValue || (dependOnValue2 && String(value) === dependOnValue2))) {
+                            dependents[j].classList.remove("hidden");
+                            setTimeout(() => dependents[j].classList.remove("hiding"), 1);
+                        } else {
+                            dependents[j].classList.add("hiding");
+                            setTimeout(() => dependents[j].classList.add("hidden"), 400);
+                        }
+                    }
                 });
                 break;
             }
-            case "react-CategoryChooserComponent":
-                categoryChoosers.push(new CategoryChooser(optionsElements[i]));
+            case "react-ChannelOverridesComponent":
+                new ChannelOverrides(optionsElements[i]);
                 break;
-            case "react-UnsubmittedVideosComponent":
-                unsubmittedVideos.push(new UnsubmittedVideos(optionsElements[i]));
+            case "react-CasualChoiceComponent":
+                new CasualChoice(optionsElements[i]);
                 break;
         }
     }
@@ -338,10 +340,10 @@ async function init() {
     // Tab interaction
     const tabElements = document.getElementsByClassName("tab-heading");
     for (let i = 0; i < tabElements.length; i++) {
-        const tabFor = tabElements[i].getAttribute("data-for");
+        const tabFor = tabElements[i].getAttribute("data-for")!;
 
         if (tabElements[i].classList.contains("selected"))
-            document.getElementById(tabFor).classList.remove("hidden");
+            document.getElementById(tabFor)!.classList.remove("hidden");
 
         tabElements[i].addEventListener("click", () => {
             if (!embed) location.hash = tabFor;
@@ -349,16 +351,16 @@ async function init() {
             createStickyHeader();
 
             document.querySelectorAll(".tab-heading").forEach(element => { element.classList.remove("selected"); });
-            optionsContainer.querySelectorAll(".option-group").forEach(element => { element.classList.add("hidden"); });
+            optionsContainer!.querySelectorAll(".option-group").forEach(element => { element.classList.add("hidden"); });
 
             tabElements[i].classList.add("selected");
-            document.getElementById(tabFor).classList.remove("hidden");
+            document.getElementById(tabFor)!.classList.remove("hidden");
         });
     }
 
     window.addEventListener("scroll", () => createStickyHeader());
 
-    optionsContainer.classList.add("animated");
+    optionsContainer!.classList.add("sb-animated");
 }
 
 function createStickyHeader() {
@@ -366,13 +368,13 @@ function createStickyHeader() {
     const options = document.getElementById("options");
 
     if (!embed && window.pageYOffset > 90 && (window.innerHeight <= 770 || window.innerWidth <= 1200)) {
-        if (!container.classList.contains("sticky")) {
-            options.style.marginTop = options.offsetTop.toString()+"px";
-            container.classList.add("sticky");
+        if (!container!.classList.contains("sticky")) {
+            options!.style.marginTop = options!.offsetTop.toString()+"px";
+            container!.classList.add("sticky");
         }
     } else {
-        options.style.marginTop = "unset";
-        container.classList.remove("sticky");
+        options!.style.marginTop = "unset";
+        container!.classList.remove("sticky");
     }
 }
 
@@ -383,35 +385,23 @@ function createStickyHeader() {
  */
 async function shouldHideOption(element: Element): Promise<boolean> {
     return (element.getAttribute("data-private-only") === "true" && !(await isIncognitoAllowed()))
-            || (element.getAttribute("data-no-safari") === "true" && navigator.vendor === "Apple Computer, Inc.");
+            || (element.getAttribute("data-no-safari") === "true" && navigator.vendor === "Apple Computer, Inc.")
+            || (element.getAttribute("data-only-paid") === "true" && !Config.config!.freeActivation);
 }
 
 /**
  * Called when the config is updated
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function optionsConfigUpdateListener(changes: StorageChangesObject) {
     const optionsContainer = document.getElementById("options");
-    const optionsElements = optionsContainer.querySelectorAll("*");
+    const optionsElements = optionsContainer!.querySelectorAll("*");
 
     for (let i = 0; i < optionsElements.length; i++) {
         switch (optionsElements[i].getAttribute("data-type")) {
             case "display":
                 updateDisplayElement(<HTMLElement> optionsElements[i])
                 break;
-        }
-    }
-
-    if (changes.categorySelections || changes.payments) {
-        for (const chooser of categoryChoosers) {
-            chooser.update();
-        }
-    }
-}
-
-function optionsLocalConfigUpdateListener(changes: StorageChangesObject) {
-    if (changes.unsubmittedSegments) {
-        for (const chooser of unsubmittedVideos) {
-            chooser.update();
         }
     }
 }
@@ -422,8 +412,8 @@ function optionsLocalConfigUpdateListener(changes: StorageChangesObject) {
  * @param element
  */
 function updateDisplayElement(element: HTMLElement) {
-    const displayOption = element.getAttribute("data-sync")
-    const displayText = Config.config[displayOption];
+    const displayOption = element.getAttribute("data-sync")!;
+    const displayText = Config.config![displayOption];
     element.innerText = displayText;
 
     // See if anything extra must be run
@@ -436,8 +426,8 @@ function updateDisplayElement(element: HTMLElement) {
                     allEquals = false;
             }
             if (!allEquals) {
-                const resetButton = element.parentElement.querySelector(".invidious-instance-reset");
-                resetButton.classList.remove("hidden");
+                const resetButton = element.parentElement!.querySelector(".invidious-instance-reset");
+                resetButton!.classList.remove("hidden");
             }
             break;
         }
@@ -457,48 +447,43 @@ function invidiousInstanceAddInit(element: HTMLElement, option: string) {
     const setButton = element.querySelector(".text-change-set");
     const cancelButton = element.querySelector(".text-change-reset");
     const resetButton = element.querySelector(".invidious-instance-reset");
-    setButton.addEventListener("click", async function() {
+    setButton!.addEventListener("click", function() {
         if (textBox.value == "" || textBox.value.includes("/") || textBox.value.includes("http")) {
             alert(chrome.i18n.getMessage("addInvidiousInstanceError"));
         } else {
             // Add this
-            let instanceList = Config.config[option];
+            let instanceList = Config.config![option];
             if (!instanceList) instanceList = [];
 
-            let domain = textBox.value.trim().toLowerCase();
-            if (domain.includes(":")) {
-                domain = domain.split(":")[0];
-            }
+            instanceList.push(textBox.value.trim().toLowerCase());
 
-            instanceList.push(domain);
-
-            Config.config[option] = instanceList;
+            Config.config![option] = instanceList;
 
             const checkbox = <HTMLInputElement> document.querySelector("#support-invidious input");
             checkbox.checked = true;
 
-            invidiousOnClick(checkbox, "supportInvidious");
+            void invidiousOnClick(checkbox, "supportInvidious");
 
-            resetButton.classList.remove("hidden");
+            resetButton!.classList.remove("hidden");
 
             // Hide this section again
             textBox.value = "";
-            element.querySelector(".option-hidden-section").classList.add("hidden");
-            button.classList.remove("disabled");
+            element.querySelector(".option-hidden-section")!.classList.add("hidden");
+            button!.classList.remove("disabled");
         }
     });
 
-    cancelButton.addEventListener("click", async function() {
+    cancelButton!.addEventListener("click", function() {
         textBox.value = "";
-        element.querySelector(".option-hidden-section").classList.add("hidden");
-        button.classList.remove("disabled");
+        element.querySelector(".option-hidden-section")!.classList.add("hidden");
+        button!.classList.remove("disabled");
     });
 
-    resetButton.addEventListener("click", function() {
+    resetButton!.addEventListener("click", function() {
         if (confirm(chrome.i18n.getMessage("resetInvidiousInstanceAlert"))) {
             // Set to CI populated list
-            Config.config[option] = invidiousList;
-            resetButton.classList.add("hidden");
+            Config.config![option] = invidiousList;
+            resetButton!.classList.add("hidden");
         }
     });
 }
@@ -509,14 +494,15 @@ function invidiousInstanceAddInit(element: HTMLElement, option: string) {
  * @param checkbox
  * @param option
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function invidiousInit(checkbox: HTMLInputElement, option: string) {
-    utils.containsInvidiousPermission().then((result) => {
-        if (result != checkbox.checked) {
-            Config.config[option] = result;
+    // utils.containsInvidiousPermission().then((result) => {
+    //     if (result != checkbox.checked) {
+    //         Config.config![option] = result;
 
-            checkbox.checked = result;
-        }
-    });
+    //         checkbox.checked = result;
+    //     }
+    // });
 }
 
 /**
@@ -525,9 +511,11 @@ function invidiousInit(checkbox: HTMLInputElement, option: string) {
  * @param checkbox
  * @param option
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function invidiousOnClick(checkbox: HTMLInputElement, option: string): Promise<void> {
-    const enabled = await utils.applyInvidiousPermissions(checkbox.checked, option);
-    checkbox.checked = enabled;
+    // TODO: Complete invidious support
+    // const enabled = await utils.applyInvidiousPermissions(checkbox.checked, option);
+    // checkbox.checked = enabled;
 }
 
 /**
@@ -537,22 +525,22 @@ async function invidiousOnClick(checkbox: HTMLInputElement, option: string): Pro
  */
 function activatePrivateTextChange(element: HTMLElement) {
     const button = element.querySelector(".trigger-button");
-    if (button.classList.contains("disabled")) return;
+    if (button!.classList.contains("disabled")) return;
 
-    button.classList.add("disabled");
+    button!.classList.add("disabled");
 
     const textBox = <HTMLInputElement> element.querySelector(".option-text-box");
-    const option = element.getAttribute("data-sync");
-    const optionType = element.getAttribute("data-sync-type");
+    const option = element.getAttribute("data-sync")!;
+    const optionType = element.getAttribute("data-sync-type")!;
 
     // See if anything extra must be done
     switch (option) {
         case "invidiousInstances":
-            element.querySelector(".option-hidden-section").classList.remove("hidden");
+            element.querySelector(".option-hidden-section")!.classList.remove("hidden");
             return;
     }
 
-    let result = Config.config[option];
+    let result = Config.config![option];
     // See if anything extra must be done
     switch (option) {
         case "*": {
@@ -568,29 +556,29 @@ function activatePrivateTextChange(element: HTMLElement) {
     textBox.value = result;
 
     const setButton = element.querySelector(".text-change-set");
-    setButton.addEventListener("click", async () => {
-        setTextOption(option, element, textBox.value);
+    setButton!.addEventListener("click", () => {
+        void setTextOption(option!, element, textBox.value);
     });
 
     // See if anything extra must be done
     switch (option) {
         case "userID":
-            if (Config.config[option]) {
-                asyncRequestToServer("GET", "/api/userInfo", {
-                    publicUserID: getHash(Config.config[option]),
+            if (Config.config![option]) {
+                sendRequestToServer("GET", "/api/userInfo", {
+                    publicUserID: getHash(Config.config![option]!),
                     values: ["warnings", "banned"]
                 }).then((result) => {
                     const userInfo = JSON.parse(result.responseText);
                     if (userInfo.warnings > 0 || userInfo.banned) {
-                        setButton.classList.add("hidden");
+                        setButton!.classList.add("hidden");
                     }
-                });
+                }).catch(logError);
             }
 
             break;
     }
 
-    element.querySelector(".option-hidden-section").classList.remove("hidden");
+    element.querySelector(".option-hidden-section")!.classList.remove("hidden");
 }
 
 /**
@@ -613,10 +601,19 @@ async function setTextOption(option: string, element: HTMLElement, value: string
                 try {
                     const newConfig = JSON.parse(value);
                     for (const key in newConfig) {
+                        if (!CompileConfig.debug 
+                                && (key === "activated" 
+                                    || key === "freeTrialStart" 
+                                    || key === "freeAccessRequestStart"
+                                    || key === "freeAccessWaitingPeriod"
+                                    || (key === "userID" && newConfig[key] === ""))) {
+                            continue;
+                        }
+
                         if (optionType === "local") {
-                            Config.local[key] = newConfig[key];
+                            Config.local![key] = newConfig[key];
                         } else {
-                            Config.config[key] = newConfig[key];
+                            Config.config![key] = newConfig[key];
                         }
                     }
 
@@ -633,8 +630,14 @@ async function setTextOption(option: string, element: HTMLElement, value: string
                 }
 
                 break;
+            case "userID":
+                if (value !== "") {
+                    Config.config![option] = value;
+                }
+
+                break;
             default:
-                Config.config[option] = value;
+                Config.config![option] = value;
         }
     } else {
         if (typeof callbackOnError == "function")
@@ -649,7 +652,7 @@ function downloadConfig(element: Element) {
     const jsonData = JSON.parse(JSON.stringify(optionType === "local" ? Config.cachedLocalStorage : Config.cachedSyncConfig));
     const dateTimeString = new Date().toJSON().replace("T", "_").replace(/:/g, ".").replace(/.\d+Z/g, "")
     file.setAttribute("href", `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(jsonData))}`);
-    file.setAttribute("download", `SponsorBlock${optionType === "local" ? "OtherData" : "Config"}_${dateTimeString}.json`);
+    file.setAttribute("download", `DeArrow${optionType === "local" ? "OtherData" : "Config"}_${dateTimeString}.json`);
     document.body.append(file);
     file.click();
     file.remove();
@@ -657,12 +660,12 @@ function downloadConfig(element: Element) {
 
 function uploadConfig(e: Event, element: HTMLElement) {
     const target = e.target as HTMLInputElement;
-    if (target.files.length == 1) {
+    if (target.files?.length == 1) {
         const file = target.files[0];
         const reader = new FileReader();
         reader.onload = function(ev) {
-            setTextOption("*", element, ev.target.result as string, () => {
-                target.value = null;
+            void setTextOption("*", element, ev.target!.result as string, () => {
+                target.value = "";
             });
         };
         reader.readAsText(file);
@@ -675,7 +678,7 @@ function uploadConfig(e: Event, element: HTMLElement) {
  *
  * @param input Input server address
  */
-function validateServerAddress(input: string): string {
+function validateServerAddress(input: string): string | null {
     input = input.trim();
 
     // Trim the trailing slashes
@@ -693,14 +696,37 @@ function validateServerAddress(input: string): string {
 }
 
 function copyDebugOutputToClipboard() {
+    // Build output debug information object
+    const output = {
+        debug: {
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            language: navigator.language,
+            extensionVersion: chrome.runtime.getManifest().version
+        },
+        config: JSON.parse(JSON.stringify(Config.cachedSyncConfig)) // Deep clone config object
+    };
+
+    // Sanitise sensitive user config values
+    delete output.config.userID;
+    delete output.config.licenseKey;
+    delete output.config.freeActivation;
+    delete output.config.freeTrialStart;
+    delete output.config.freeTrialEnded;
+    delete output.config.freeAccessRequestStart;
+
+    output.config.serverAddress = (output.config.serverAddress === CompileConfig.serverAddress)
+        ? "Default server address" : "Custom server address";
+    output.config.invidiousInstances = output.config.invidiousInstances.length;
+
     // Copy object to clipboard
-    navigator.clipboard.writeText(generateDebugDetails())
-    .then(() => {
+    navigator.clipboard.writeText(JSON.stringify(output, null, 4))
+      .then(() => {
         alert(chrome.i18n.getMessage("copyDebugInformationComplete"));
-    })
-    .catch(() => {
+      })
+      .catch(() => {
         alert(chrome.i18n.getMessage("copyDebugInformationFailed"));
-    });
+      });
 }
 
 function isIncognitoAllowed(): Promise<boolean> {

@@ -5,7 +5,7 @@
   <sub>Logo by <a href="https://github.com/munadikieh">@munadikieh</a></sub>
 </p>
 
-<h1 align="center">SponsorBlock</h1>
+<h1 align="center">EditTogether</h1>
 
 <p align="center">
   <b>Download:</b>
@@ -36,7 +36,7 @@
 
 
 
-SponsorBlock is an open-source crowdsourced browser extension to skip sponsor segments in YouTube videos. Users submit when a sponsor happens from the extension, and the extension automatically skips sponsors it knows about. It also supports skipping other categories, such as intros, outros and reminders to subscribe.
+EditTogether is an open-source extension that merges SponsorBlock and DeArrow. It skips sponsored segments in YouTube videos and applies improved community titles and thumbnails. Users submit when a sponsor happens and the extension automatically skips sponsors it knows about. It also supports skipping other categories, such as intros, outros and reminders to subscribe.
 
 It also supports Invidious.
 

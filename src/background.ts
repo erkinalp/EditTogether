@@ -8,11 +8,11 @@ import { setupTabUpdates } from "../maze-utils/src/tab-updates";
 import { generateUserID } from "../maze-utils/src/setup";
 
 import Utils from "./utils";
-import { getExtensionIdsToImportFrom } from "./utils/crossExtension";
 import { isFirefoxOrSafari, waitFor } from "../maze-utils/src";
 import { injectUpdatedScripts } from "../maze-utils/src/cleanup";
 import { logWarn } from "./utils/logger";
 import { chromeP } from "../maze-utils/src/browserApi";
+import "./DeArrow/background";
 const utils = new Utils({
     registerFirefoxContentScript,
     unregisterFirefoxContentScript
@@ -84,19 +84,6 @@ chrome.runtime.onMessage.addListener(function (request, sender, callback) {
 	}
 });
 
-chrome.runtime.onMessageExternal.addListener((request, sender, callback) => {
-    if (getExtensionIdsToImportFrom().includes(sender.id)) {
-        if (request.message === "requestConfig") {
-            callback({
-                userID: Config.config.userID,
-                allowExpirements: Config.config.allowExpirements,
-                showDonationLink: Config.config.showDonationLink,
-                showUpsells: Config.config.showUpsells,
-                darkMode: Config.config.darkMode,
-            })
-        }
-    }
-});
 
 chrome.runtime.onConnect.addListener((port) => {
     if (port.name === "popup") {

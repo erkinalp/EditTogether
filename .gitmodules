@@ -4,3 +4,6 @@
 [submodule "maze-utils"]
 	path = maze-utils
 	url = https://github.com/ajayyy/maze-utils
+[submodule "DeArrow"]
+	path = DeArrow
+	url = https://github.com/ajayyy/DeArrow.git
