@@ -1,22 +1,31 @@
-if (typeof (window) !== "undefined") {
-    window["SBLogs"] = {
-        debug: [],
-        warn: []
-    };
+import * as CompileConfig from "../../config.json";
+
+export function logError(error: unknown): void {
+    console.error("[CB]", error);
 }
 
-export function logDebug(message: string) {
-    if (typeof (window) !== "undefined") {
-        window["SBLogs"].debug.push(`[${new Date().toISOString()}] ${message}`);
-    } else {
-        console.log(`[${new Date().toISOString()}] ${message}`)
+export function logWarn(...text: unknown[]): void {
+    console.warn("[CB]", ...text);
+}
+
+export function logDebug(...text: unknown[]): void {
+    if (CompileConfig.debug) {
+        console.log("[CB]", ...text);
     }
 }
 
-export function logWarn(message: string) {
-    if (typeof (window) !== "undefined") {
-        window["SBLogs"].warn.push(`[${new Date().toISOString()}] ${message}`);
+export function log(...text: unknown[]): void {
+    if (CompileConfig.debug) {
+        console.log(...text);
     } else {
-        console.warn(`[${new Date().toISOString()}] ${message}`)
+        window["CBLogs"] ??= [];
+        window["CBLogs"].push({
+            time: Date.now(),
+            text
+        });
+
+        if (window["CBLogs"].length > 100) {
+            window["CBLogs"].shift();
+        }
     }
 }

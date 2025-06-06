@@ -57,8 +57,6 @@ async function fetchSegmentsForVideo(videoID: VideoID): Promise<SegmentResponse>
         actionTypes: ActionTypes,
         trimUUIDs: hasDownvotedSegments ? null : 5,
         ...extraRequestData
-    }, {
-        "X-CLIENT-NAME": extensionUserAgent(),
     });
 
     if (response.ok) {

@@ -1,12 +1,14 @@
 {
-  "name": "sponsorblock",
+  "name": "edittogether",
   "version": "1.0.0",
   "description": "",
   "main": "background.js",
   "dependencies": {
     "content-scripts-register-polyfill": "^4.0.2",
+    "cld3-asm": "^3.1.1",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "seedrandom": "^3.0.5"
   },
   "overrides": {
     "content-scripts-register-polyfill": {
@@ -19,6 +21,7 @@
     "@types/jest": "^29.4.0",
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.11",
+    "@types/seedrandom": "^3.0.5",
     "@types/selenium-webdriver": "^4.1.13",
     "@types/wicg-mediasession": "^1.1.4",
     "@typescript-eslint/eslint-plugin": "^5.54.1",
@@ -93,7 +96,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ajayyy/SponsorBlock.git"
+    "url": "git+https://github.com/EditTogether/EditTogether.git"
   },
   "author": "Ajay Ramachandran",
   "license": "GPL-3.0",

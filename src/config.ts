@@ -74,10 +74,7 @@ interface SBConfig {
     useVirtualTime: boolean;
     showSegmentFailedToFetchWarning: boolean;
     allowScrollingToEdit: boolean;
-    deArrowInstalled: boolean;
-    showDeArrowPromotion: boolean;
-    showDeArrowInSettings: boolean;
-    shownDeArrowPromotion: boolean;
+
     showZoomToFillError2: boolean;
     cleanPopup: boolean;
 
@@ -104,13 +101,7 @@ interface SBConfig {
     // What categories should be skipped
     categorySelections: CategorySelection[];
 
-    payments: {
-        licenseKey: string;
-        lastCheck: number;
-        lastFreeCheck: number;
-        freeAccess: boolean;
-        chaptersAllowed: boolean;
-    };
+
 
     // Preview bar
     barTypes: {
@@ -335,10 +326,7 @@ const syncDefaults = {
     useVirtualTime: true,
     showSegmentFailedToFetchWarning: true,
     allowScrollingToEdit: true,
-    deArrowInstalled: false,
-    showDeArrowPromotion: true,
-    showDeArrowInSettings: true,
-    shownDeArrowPromotion: false,
+
     showZoomToFillError2: true,
     cleanPopup: false,
 
@@ -377,13 +365,7 @@ const syncDefaults = {
         option: CategorySkipOption.ShowOverlay
     }],
 
-    payments: {
-        licenseKey: null,
-        lastCheck: 0,
-        lastFreeCheck: 0,
-        freeAccess: false,
-        chaptersAllowed: false
-    },
+
 
     colorPalette: {
         red: "#780303",

@@ -226,3 +226,27 @@ export enum NoticeVisibilityMode {
     FadedForAutoSkip = 3,
     FadedForAll = 4
 }
+
+export type ShowCustomBrandingInfo = {
+    knownValue: boolean;
+    originalValue: boolean | null;
+    showCasual: boolean | null;
+} | {
+    knownValue: null;
+    actualValue: Promise<boolean>;
+    originalValue: boolean | null;
+    showCasual: boolean | null;
+};
+
+export type CustomThumbnailSubmission = {
+    timestamp: number;
+    original: false;
+};
+
+export type OriginalThumbnailSubmission = {
+    original: true;
+};
+
+export type ThumbnailSubmission = CustomThumbnailSubmission | OriginalThumbnailSubmission;
+
+export type UnsubmittedThumbnailSubmission = ThumbnailSubmission & { selected?: boolean; };

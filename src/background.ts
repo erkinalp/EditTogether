@@ -8,7 +8,7 @@ import { setupTabUpdates } from "../maze-utils/src/tab-updates";
 import { generateUserID } from "../maze-utils/src/setup";
 
 import Utils from "./utils";
-import { getExtensionIdsToImportFrom } from "./utils/crossExtension";
+
 import { isFirefoxOrSafari, waitFor } from "../maze-utils/src";
 import { injectUpdatedScripts } from "../maze-utils/src/cleanup";
 import { logWarn } from "./utils/logger";
@@ -85,7 +85,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, callback) {
 });
 
 chrome.runtime.onMessageExternal.addListener((request, sender, callback) => {
-    if (getExtensionIdsToImportFrom().includes(sender.id)) {
+    if (false) {
         if (request.message === "requestConfig") {
             callback({
                 userID: Config.config.userID,
