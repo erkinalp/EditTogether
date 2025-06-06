@@ -26,10 +26,10 @@ export const PopupComponent = () => {
     return (
         <>
             <header className="sbPopupLogo">
-                <img src="icons/logo.svg" alt="DeArrow Logo" width="40" height="40" id="dearrowPopupLogo"/>
+                <img src="icons/logo.svg" alt="EditTogether Logo" width="40" height="40" id="dearrowPopupLogo"/>
                 <p className="u-mZ">
                     <FormattedText
-                        text="DeArrow"
+                        text="EditTogether"
                         titleFormatting={titleFormatting}
                     />
                 </p>
@@ -129,26 +129,26 @@ export const PopupComponent = () => {
                             titleFormatting={titleFormatting}
                         />
                 </a>
-                <a href="https://dearrow.ajay.app" target="_blank" rel="noreferrer">
+                <a href="https://github.com/erkinalp/EditTogether" target="_blank" rel="noreferrer">
                     <FormattedText
                         langKey="website"
                         titleFormatting={titleFormatting}
                     />
                 </a>
-                <a href="https://dearrow.ajay.app/stats" target="_blank" rel="noreferrer" className={isSafari() ? " hidden" : ""}>
+                <a href="https://github.com/erkinalp/EditTogether" target="_blank" rel="noreferrer" className={isSafari() ? " hidden" : ""}>
                     <FormattedText
                         langKey="viewLeaderboard"
                         titleFormatting={titleFormatting}
                     />
                 </a>
-                <a href="https://dearrow.ajay.app/donate" target="_blank" rel="noreferrer" className={!showDonationLink() ? " hidden" : ""}>
+                <a href="https://github.com/erkinalp/EditTogether" target="_blank" rel="noreferrer" className={!showDonationLink() ? " hidden" : ""}>
                     <FormattedText
                         langKey="Donate"
                         titleFormatting={titleFormatting}
                     />
                 </a>
                 <br />
-                <a href="https://github.com/ajayyy/DeArrow" target="_blank" rel="noreferrer">
+                <a href="https://github.com/erkinalp/EditTogether" target="_blank" rel="noreferrer">
                     <FormattedText
                         text="GitHub"
                         titleFormatting={titleFormatting}

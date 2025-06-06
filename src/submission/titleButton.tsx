@@ -101,7 +101,7 @@ export class TitleButton {
             this.button.title = this.buttonTitle;
         } else {
             this.button.innerHTML = disabledIcon;
-            this.button.title = chrome.i18n.getMessage("DeArrowIsDisabled");
+            this.button.title = chrome.i18n.getMessage("EditTogetherIsDisabled");
         }
     }
 

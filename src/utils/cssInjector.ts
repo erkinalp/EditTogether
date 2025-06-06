@@ -110,7 +110,7 @@ function buildHideTitleCss(): string {
     for (const start of brandingBoxSelector.split(", ")) {
         if (!onMobile()) {
             // Fix smaller titles in playlists on search pages from being hidden
-            // https://github.com/ajayyy/DeArrow/issues/162
+            // https://github.com/erkinalp/EditTogether/issues/162
             const extra = start === "ytd-playlist-renderer" ? " a.ytd-playlist-renderer" : "";
 
             result.push(`${start}${extra} #video-title:not(.cbCustomTitle)`);

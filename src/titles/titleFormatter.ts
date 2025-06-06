@@ -670,7 +670,7 @@ export async function localizeHtmlPageWithFormatting(): Promise<void> {
     const localizedTitle = await getLocalizedMessageWithFormatting(document.title);
     if (localizedTitle) document.title = localizedTitle;
 
-    const body = document.querySelector(".sponsorBlockPageBody");
+    const body = document.querySelector(".editTogetherPageBody");
     const localizedMessage = await getLocalizedMessageWithFormatting(body!.innerHTML.toString());
     if (localizedMessage) body!.innerHTML = localizedMessage;
 }

@@ -174,18 +174,18 @@ function SubmissionCounts(props: {isSettingUsername: boolean; titleSubmissionCou
 }
 
 function getReplacementsMessage(): JSX.Element {
-    const messageParts = chrome.i18n.getMessage("dearrowStatsMessage2")
+    const messageParts = chrome.i18n.getMessage("editTogetherStatsMessage2")
         .split("{titleAndThumbnailMessage}");
 
     const titleParts = (Config.config!.titleReplacements === 1 ?
-        chrome.i18n.getMessage("dearrowStatsMessageTitlePart") :
-        chrome.i18n.getMessage("dearrowStatsMessageTitlesPart")).split("{titles}");
+        chrome.i18n.getMessage("editTogetherStatsMessageTitlePart") :
+        chrome.i18n.getMessage("editTogetherStatsMessageTitlesPart")).split("{titles}");
     const thumbnailTemplate = (Config.config!.thumbnailReplacements === 1 ?
-        chrome.i18n.getMessage("dearrowStatsMessageThumbnailPart") :
-        chrome.i18n.getMessage("dearrowStatsMessageThumbnailsPart")).split("{thumbnails}");
+        chrome.i18n.getMessage("editTogetherStatsMessageThumbnailPart") :
+        chrome.i18n.getMessage("editTogetherStatsMessageThumbnailsPart")).split("{thumbnails}");
 
     return (
-        <p id="dearrowReplacementsDone" className="u-mZ sbStatsSentence">
+        <p id="editTogetherReplacementsDone" className="u-mZ sbStatsSentence">
             {messageParts[0]}
             {titleParts[0]}
             <b>

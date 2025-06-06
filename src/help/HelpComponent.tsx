@@ -13,7 +13,7 @@ export const HelpComponent = () => {
                 </span>
             </div>
 
-            <div className="container sponsorBlockPageBody">
+            <div className="container editTogetherPageBody">
 
                 <p className="createdBy">
                     <img src="https://ajay.app/newprofilepic.jpg" height="30" className="profilepiccircle" />
@@ -32,7 +32,7 @@ export const HelpComponent = () => {
                 {
                     Config.config!.importedConfig ? 
                     <p>
-                        {chrome.i18n.getMessage("dearrowHelpSponsorBlockImported")}
+                        {chrome.i18n.getMessage("editTogetherHelpEditTogetherImported")}
                     </p>
                     : null
                 }
@@ -51,7 +51,7 @@ export const HelpComponent = () => {
                 </h1>
 
                 <p>
-                    Please see <a href="https://dearrow.ajay.app" target="_blank" rel="noreferrer">https://dearrow.ajay.app</a> for more information.
+                    Please see <a href="https://github.com/erkinalp/EditTogether" target="_blank" rel="noreferrer">https://github.com/erkinalp/EditTogether</a> for more information.
                 </p>
 
                 <h1>
@@ -59,7 +59,7 @@ export const HelpComponent = () => {
                 </h1>
 
                 <p>
-                    Thanks to all <a href="https://github.com/ajayyy/DeArrow/graphs/contributors" target="_blank" rel="noreferrer">DeArrow contributors</a>,{" "}
+                    Thanks to all <a href="https://github.com/erkinalp/EditTogether/graphs/contributors" target="_blank" rel="noreferrer">EditTogether contributors</a>,{" "}
                     <a href="https://github.com/ajayyy/SponsorBlock/graphs/contributors" target="_blank" rel="noreferrer">SponsorBlock contributors</a>,{" "}
                     <a href="https://github.com/ajayyy/SponsorBlockServer/graphs/contributors" target="_blank" rel="noreferrer">SponsorBlockServer contributors</a> and{" "}
                     <a href="https://github.com/ajayyy/SponsorBlockSite/graphs/contributors" target="_blank" rel="noreferrer">SponsorBlockSite contributors</a> such{" "}
@@ -68,7 +68,7 @@ export const HelpComponent = () => {
                 </p>
 
                 <p>
-                    {chrome.i18n.getMessage("dearrowLogoCredit")}
+                    {chrome.i18n.getMessage("editTogetherLogoCredit")}
                 </p>
 
                 <p style={{textAlign: "center"}}>
