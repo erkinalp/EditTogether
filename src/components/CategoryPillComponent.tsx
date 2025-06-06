@@ -59,7 +59,7 @@ class CategoryPillComponent extends React.Component<CategoryPillProps, CategoryP
                 
                 <span className="sponsorBlockCategoryPillTitleSection">
                     <img className="sponsorSkipLogo sponsorSkipObject"
-                        src={chrome.runtime.getURL("icons/IconSponsorBlocker256px.png")}>
+                        src={chrome.runtime.getURL("icons/IconEditTogether256px.png")}>
                     </img>
 
                     {

@@ -1947,11 +1947,11 @@ async function createButtons(): Promise<void> {
     controls = await utils.wait(getControls).catch();
 
     // Add button if does not already exist in html
-    createButton("startSegment", "sponsorStart", () => startOrEndTimingNewSegment(), "PlayerStartIconSponsorBlocker.svg");
-    createButton("cancelSegment", "sponsorCancel", () => cancelCreatingSegment(), "PlayerCancelSegmentIconSponsorBlocker.svg");
-    createButton("delete", "clearTimes", () => clearSponsorTimes(), "PlayerDeleteIconSponsorBlocker.svg");
-    createButton("submit", "OpenSubmissionMenu", () => openSubmissionMenu(), "PlayerUploadIconSponsorBlocker.svg");
-    createButton("info", "openPopup", () => openInfoMenu(), "PlayerInfoIconSponsorBlocker.svg");
+    createButton("startSegment", "sponsorStart", () => startOrEndTimingNewSegment(), "PlayerStartIconEditTogether.svg");
+    createButton("cancelSegment", "sponsorCancel", () => cancelCreatingSegment(), "PlayerCancelSegmentIconEditTogether.svg");
+    createButton("delete", "clearTimes", () => clearSponsorTimes(), "PlayerDeleteIconEditTogether.svg");
+    createButton("submit", "OpenSubmissionMenu", () => openSubmissionMenu(), "PlayerUploadIconEditTogether.svg");
+    createButton("info", "openPopup", () => openInfoMenu(), "PlayerInfoIconEditTogether.svg");
 
     const controlsContainer = getControls();
     if (Config.config.autoHideInfoButton && !isOnInvidious() && controlsContainer
@@ -2008,10 +2008,10 @@ function updateEditButtonsOnPlayer(): void {
 
     if (buttonsEnabled) {
         if (creatingSegment) {
-            playerButtons.startSegment.image.src = chrome.runtime.getURL("icons/PlayerStopIconSponsorBlocker.svg");
+            playerButtons.startSegment.image.src = chrome.runtime.getURL("icons/PlayerStopIconEditTogether.svg");
             playerButtons.startSegment.button.setAttribute("title", chrome.i18n.getMessage("sponsorEnd"));
         } else {
-            playerButtons.startSegment.image.src = chrome.runtime.getURL("icons/PlayerStartIconSponsorBlocker.svg");
+            playerButtons.startSegment.image.src = chrome.runtime.getURL("icons/PlayerStartIconEditTogether.svg");
             playerButtons.startSegment.button.setAttribute("title", chrome.i18n.getMessage("sponsorStart"));
         }
     }
@@ -2504,7 +2504,7 @@ async function sendSubmitMessage(): Promise<boolean> {
     } else {
         // Show that the upload failed
         playerButtons.submit.button.style.animation = "unset";
-        playerButtons.submit.image.src = chrome.runtime.getURL("icons/PlayerUploadFailedIconSponsorBlocker.svg");
+        playerButtons.submit.image.src = chrome.runtime.getURL("icons/PlayerUploadFailedIconEditTogether.svg");
 
         if (response.status === 403 && response.responseText.startsWith("Submission rejected due to a tip from a moderator.")) {
             openWarningDialog(skipNoticeContentContainer);
