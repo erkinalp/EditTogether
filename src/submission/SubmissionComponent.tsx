@@ -52,7 +52,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
             };
             setChatDisplayName(displayName);
 
-            const values = ["userName", "deArrowWarningReason"];
+            const values = ["userName", "editTogetherWarningReason"];
             const result = await sendRequestToServer("GET", "/api/userInfo", {
                 publicUserID: publicUserID,
                 values
@@ -62,8 +62,8 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
                 const userInfo = JSON.parse(result.responseText);
                 username = userInfo.userName;
 
-                if (userInfo.deArrowWarningReason) {
-                    createWarningTooltip(userInfo.deArrowWarningReason, displayName);
+                if (userInfo.editTogetherWarningReason) {
+                    createWarningTooltip(userInfo.editTogetherWarningReason, displayName);
                 }
             }
 
@@ -387,7 +387,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
 
                     <div className="cbHelpButtonContainer">
                         <a className="cbNoticeButton"
-                            href="https://wiki.sponsor.ajay.app/w/DeArrow/Guidelines"
+                            href="https://wiki.sponsor.ajay.app/w/Guidelines"
                             target="_blank"
                             rel="noreferrer">
                             <FormattedText
@@ -503,7 +503,7 @@ export function getChatDisplayName(chatDisplayName: ChatDisplayName | null): str
             return chatDisplayName.publicUserID;
         }
     } else {
-        return "DeArrow User";
+        return "EditTogether User";
     }
 }
 
@@ -549,7 +549,7 @@ function createWarningTooltip(reason: string, name: ChatDisplayName) {
 
     if (element) {
         const tooltip = new Tooltip({
-            textBoxes: `${chrome.i18n.getMessage("deArrowMessageRecieved")}:\n\n${reason}`.split("\n"),
+            textBoxes: `${chrome.i18n.getMessage("editTogetherMessageRecieved")}:\n\n${reason}`.split("\n"),
             referenceNode: element.parentElement!,
             prependElement: element,
             positionRealtive: false,

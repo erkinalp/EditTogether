@@ -8,13 +8,13 @@
   ],
   "web_accessible_resources": [{
     "resources": [
-      "icons/LogoSponsorBlocker256px.png",
-      "icons/IconSponsorBlocker256px.png",
-      "icons/PlayerStartIconSponsorBlocker.svg",
-      "icons/PlayerStopIconSponsorBlocker.svg",
-      "icons/PlayerUploadIconSponsorBlocker.svg",
-      "icons/PlayerUploadFailedIconSponsorBlocker.svg",
-      "icons/PlayerCancelSegmentIconSponsorBlocker.svg",
+      "icons/LogoEditTogether256px.png",
+      "icons/IconEditTogether256px.png",
+      "icons/PlayerStartIconEditTogether.svg",
+      "icons/PlayerStopIconEditTogether.svg",
+      "icons/PlayerUploadIconEditTogether.svg",
+      "icons/PlayerUploadFailedIconEditTogether.svg",
+      "icons/PlayerCancelSegmentIconEditTogether.svg",
       "icons/clipboard.svg",
       "icons/settings.svg",
       "icons/pencil.svg",
@@ -50,8 +50,8 @@
       "icons/music-note.svg",
       "icons/import.svg",
       "icons/export.svg",
-      "icons/PlayerInfoIconSponsorBlocker.svg",
-      "icons/PlayerDeleteIconSponsorBlocker.svg",
+      "icons/PlayerInfoIconEditTogether.svg",
+      "icons/PlayerDeleteIconEditTogether.svg",
       "icons/dearrow.svg",
       "popup.html",
       "popup.css",
@@ -103,48 +103,48 @@
   }
   ],
   "action": {
-    "default_title": "SponsorBlock",
+    "default_title": "EditTogether",
     "default_popup": "popup.html",
     "default_icon": {
-        "16": "icons/IconSponsorBlocker16px.png",
-        "32": "icons/IconSponsorBlocker32px.png",
-        "64": "icons/IconSponsorBlocker64px.png",
-        "128": "icons/IconSponsorBlocker128px.png"
+        "16": "icons/IconEditTogether16px.png",
+        "32": "icons/IconEditTogether32px.png",
+        "64": "icons/IconEditTogether64px.png",
+        "128": "icons/IconEditTogether128px.png"
     },
     "theme_icons": [
         {
-            "light": "icons/IconSponsorBlocker16px.png",
-            "dark": "icons/IconSponsorBlocker16px.png",
+            "light": "icons/IconEditTogether16px.png",
+            "dark": "icons/IconEditTogether16px.png",
             "size": 16
         },
         {
-            "light": "icons/IconSponsorBlocker32px.png",
-            "dark": "icons/IconSponsorBlocker32px.png",
+            "light": "icons/IconEditTogether32px.png",
+            "dark": "icons/IconEditTogether32px.png",
             "size": 32
         },
         {
-            "light": "icons/IconSponsorBlocker64px.png",
-            "dark": "icons/IconSponsorBlocker64px.png",
+            "light": "icons/IconEditTogether64px.png",
+            "dark": "icons/IconEditTogether64px.png",
             "size": 64
         },
         {
-            "light": "icons/IconSponsorBlocker128px.png",
-            "dark": "icons/IconSponsorBlocker128px.png",
+            "light": "icons/IconEditTogether128px.png",
+            "dark": "icons/IconEditTogether128px.png",
             "size": 128
         },
         {
-            "light": "icons/IconSponsorBlocker256px.png",
-            "dark": "icons/IconSponsorBlocker256px.png",
+            "light": "icons/IconEditTogether256px.png",
+            "dark": "icons/IconEditTogether256px.png",
             "size": 256
         },
         {
-            "light": "icons/IconSponsorBlocker512px.png",
-            "dark": "icons/IconSponsorBlocker512px.png",
+            "light": "icons/IconEditTogether512px.png",
+            "dark": "icons/IconEditTogether512px.png",
             "size": 512
         },
         {
-            "light": "icons/IconSponsorBlocker1024px.png",
-            "dark": "icons/IconSponsorBlocker1024px.png",
+            "light": "icons/IconEditTogether1024px.png",
+            "dark": "icons/IconEditTogether1024px.png",
             "size": 1024
         }
     ]

@@ -7,10 +7,10 @@
   ],
   "browser_action": {
     "default_icon": {
-      "16": "icons/SafariIconSponsorBlocker16px.png",
-      "32": "icons/SafariIconSponsorBlocker32px.png",
-      "64": "icons/SafariIconSponsorBlocker64px.png",
-      "128": "icons/SafariIconSponsorBlocker128px.png"
+      "16": "icons/SafariIconEditTogether16px.png",
+      "32": "icons/SafariIconEditTogether32px.png",
+      "64": "icons/SafariIconEditTogether64px.png",
+      "128": "icons/SafariIconEditTogether128px.png"
     }
   }
 }

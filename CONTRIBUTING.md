@@ -1,14 +1,14 @@
-If you make any contributions to SponsorBlock after this file was created, you are agreeing that any code you have contributed will be licensed under GPL-3.0 and agree to allow distribution on app stores as outlined in LICENSE-APPSTORE.
+If you make any contributions to EditTogether after this file was created, you are agreeing that any code you have contributed will be licensed under GPL-3.0 and agree to allow distribution on app stores as outlined in LICENSE-APPSTORE.
 
 # Translations
-https://crowdin.com/project/sponsorblock
+https://crowdin.com/project/edittogether
 
 # Building
 ## Building locally
 0. You must have [Node.js 16 or later](https://nodejs.org/) and npm installed. Works best on Linux
 1. Clone with submodules
   ```bash
-  git clone --recursive https://github.com/ajayyy/SponsorBlock
+  git clone --recursive https://github.com/erkinalp/EditTogether
   ```
   Or if you already cloned it, pull submodules with
   ```bash

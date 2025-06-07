@@ -5,19 +5,19 @@ export interface CasualVoteCategory {
 
 export const casualVoteCategories: CasualVoteCategory[] = [{
     id: "funny",
-    key: "dearrow_category_funny"
+    key: "editTogether_category_funny"
 }, {
     id: "creative",
-    key: "dearrow_category_creative"
+    key: "editTogether_category_creative"
 }, {
     id: "clever",
-    key: "dearrow_category_clever"
+    key: "editTogether_category_clever"
 }, {
     id: "descriptive",
-    key: "dearrow_category_descriptive"
+    key: "editTogether_category_descriptive"
 }, {
     id: "other",
-    key: "dearrow_category_other"
+    key: "editTogether_category_other"
 }];
 
-export const casualWikiLink = "https://wiki.sponsor.ajay.app/w/DeArrow/Casual_mode";
+export const casualWikiLink = "https://wiki.sponsor.ajay.app/w/Casual_mode";

@@ -23,7 +23,7 @@ let timeout: NodeJS.Timeout | null = null;
 const shownWarnings: string[] = [];
 const autoWarningChecks: AutoWarningCheck[] = [
     {
-        error: chrome.i18n.getMessage("DeArrowStartLowerCaseWarning"),
+        error: chrome.i18n.getMessage("EditTogetherStartLowerCaseWarning"),
         check: (title) => {
             return {
                 found: !!title.match(/^\p{Ll}\S+ \S+ \S+/u) && !isWordCustomCapitalization(title.split(" ")[0])
@@ -32,7 +32,7 @@ const autoWarningChecks: AutoWarningCheck[] = [
         id: "startLowerCase"
     },
     {
-        error: chrome.i18n.getMessage("DeArrowDiscussingWarning"),
+        error: chrome.i18n.getMessage("EditTogetherDiscussingWarning"),
         check: (title) => {
             const match = title.match(/^(discussing|explaining|talking about|summarizing) .\S+ .\S+/i)?.[1];
             return {
@@ -42,7 +42,7 @@ const autoWarningChecks: AutoWarningCheck[] = [
         },
         id: "discussing"
     }, {
-        error: chrome.i18n.getMessage("DeArrowEndWithPeriodWarning"),
+        error: chrome.i18n.getMessage("EditTogetherEndWithPeriodWarning"),
         check: (title) => {
             return {
                 found: !!title.match(/\.$/u)
@@ -50,7 +50,7 @@ const autoWarningChecks: AutoWarningCheck[] = [
         },
         id: "endWithPeriod"
     }, {
-        error: chrome.i18n.getMessage("DeArrowClickbaitWarning"),
+        error: chrome.i18n.getMessage("EditTogetherClickbaitWarning"),
         check: (title, originalTitle) => {
             const regex = /clickbait|fake news|fake video|boring|yapping|yap|worth your time/i;
             const match = title.match(regex)?.[0];
@@ -63,7 +63,7 @@ const autoWarningChecks: AutoWarningCheck[] = [
         },
         id: "clickbait"
     }, {
-        error: chrome.i18n.getMessage("DeArrowAddingAnswerWarning"),
+        error: chrome.i18n.getMessage("EditTogetherAddingAnswerWarning"),
         check: (title, originalTitle) => {
             // Only if ends with ? or ... and then optionally more symbols
             const cleaned = cleanPunctuation(cleanFancyText(cleanEmojis(originalTitle.toLowerCase())));
@@ -75,7 +75,7 @@ const autoWarningChecks: AutoWarningCheck[] = [
         },
         id: "addingAnswer"
     }, {
-        error: chrome.i18n.getMessage("DeArrowKeepingBadOriginalWarning"),
+        error: chrome.i18n.getMessage("EditTogetherKeepingBadOriginalWarning"),
         check: (title, originalTitle) => {
             const regex = /massive problem|you need|insane|crazy|you won't believe this/i;
             const match = title.match(regex)?.[0];
@@ -88,7 +88,7 @@ const autoWarningChecks: AutoWarningCheck[] = [
         },
         id: "keepingBadOriginal"
     }, {
-        error: chrome.i18n.getMessage("DeArrowEmojiWarning"),
+        error: chrome.i18n.getMessage("EditTogetherEmojiWarning"),
         check: (title) => {
             return {
                 found: cleanEmojis(title.trim()) !== title.trim()

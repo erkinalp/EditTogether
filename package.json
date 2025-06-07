@@ -1,7 +1,7 @@
 {
   "name": "edittogether",
   "version": "1.0.0",
-  "description": "",
+  "description": "EditTogether - Skip YouTube video sponsors and improve titles/thumbnails (browser extension)",
   "main": "background.js",
   "dependencies": {
     "content-scripts-register-polyfill": "^4.0.2",
@@ -79,24 +79,24 @@
   "funding": [
     {
       "type": "individual",
-      "url": "https://sponsor.ajay.app/donate"
+      "url": "https://github.com/erkinalp/EditTogether"
     },
     {
       "type": "github",
-      "url": "https://github.com/sponsors/ajayyy-org"
+      "url": "https://github.com/sponsors/erkinalp"
     },
     {
       "type": "patreon",
-      "url": "https://www.patreon.com/ajayyy"
+      "url": "https://github.com/erkinalp/EditTogether"
     },
     {
       "type": "individual",
-      "url": "https://paypal.me/ajayyy"
+      "url": "https://github.com/erkinalp/EditTogether"
     }
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/EditTogether/EditTogether.git"
+    "url": "git+https://github.com/erkinalp/EditTogether.git"
   },
   "author": "Ajay Ramachandran",
   "license": "GPL-3.0",
