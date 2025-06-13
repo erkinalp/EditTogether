@@ -35,7 +35,7 @@
 
 
 
-EditTogether is an open-source crowdsourced browser extension to skip sponsor segments in YouTube videos. Users submit when a sponsor happens from the extension, and the extension automatically skips sponsors it knows about. It also supports skipping other categories, such as intros, outros and reminders to subscribe.
+EditTogether is an open-source crowdsourced browser extension to skip sponsor segments in YouTube videos and remove other kinds of annoyance, interruption and clickbait. Users submit when a sponsor happens from the extension, and the extension automatically skips sponsors it knows about. It also supports skipping other categories, such as intros, outros and reminders to subscribe. It also replaces titles and thumbnails.
 
 It also supports Invidious.
 
