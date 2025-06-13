@@ -1,8 +1,7 @@
 <p align="center">
-  <a href="https://github.com/erkinalp/EditTogether"><img src="public/icons/LogoEditTogether256px.png" alt="Logo"></img></a>
+  <a href="https://github.com/erkinalp/EditTogether"><img src="public/icons/pencil.svg" alt="Logo"></img></a>
 
   <br/>
-  <sub>Logo by <a href="https://github.com/munadikieh">@munadikieh</a></sub>
 </p>
 
 <h1 align="center">EditTogether</h1>
@@ -66,6 +65,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md)
 The awesome [Invidious API](https://docs.invidious.io/) was previously used, and the server is now using [NewLeaf](https://git.sr.ht/~cadence/NewLeaf) as a to get video info from YouTube.
 
 Originally forked from [YTSponsorSkip](https://github.com/NDevTK/YTSponsorSkip), but very little code remains.
+The project also incorporates original code from SponsorBlock and DeArrow, both by Ajay Ramachandran and Michael R. H. Chang.
 
 Icons made by:
 * <a href="https://www.flaticon.com/authors/gregor-cresnar" title="Gregor Cresnar">Gregor Cresnar</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a> and are licensed by <a href="https://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC 3.0 BY</a>
