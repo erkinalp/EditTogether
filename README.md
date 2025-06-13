@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://github.com/erkinalp/EditTogether"><img src="public/icons/pencil.svg" alt="Logo"></img></a>
+  <a href="https://github.com/erkinalp/EditTogether"><img src="public/icons/pencil.svg" alt="Logo" width="256" height="256"></img></a>
 
   <br/>
 </p>
