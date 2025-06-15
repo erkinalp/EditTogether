@@ -3,9 +3,9 @@ import Config, { TitleFormatting } from "../config/config";
 import { sendRequestToServer } from "../utils/requests";
 import { getHash } from "../../maze-utils/src/hash";
 import { getErrorMessage } from "../../maze-utils/src/formating";
-import PencilIcon from "../svgIcons/pencilIcon";
-import ClipboardIcon from "../svgIcons/clipboardIcon";
-import CheckIcon from "../svgIcons/checkIcon";
+import PencilIcon from "../svg-icons/pencilIcon";
+import ClipboardIcon from "../svg-icons/clipboardIcon";
+import CheckIcon from "../svg-icons/checkIcon";
 import { FormattedText } from "./FormattedTextComponent";
 
 interface YourWorkComponentProps {

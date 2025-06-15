@@ -1,9 +1,9 @@
 import * as React from "react";
 import { RenderedTitleSubmission } from "./TitleDrawerComponent";
-import ResetIcon from "../svgIcons/resetIcon";
+import ResetIcon from "../svg-icons/resetIcon";
 import Config from "../config/config";
-import UpvoteIcon from "../svgIcons/upvoteIcon";
-import DownvoteIcon from "../svgIcons/downvoteIcon";
+import UpvoteIcon from "../svg-icons/upvoteIcon";
+import DownvoteIcon from "../svg-icons/downvoteIcon";
 import { submitVideoBrandingAndHandleErrors } from "../dataFetching";
 import { AnimationUtils } from "../../maze-utils/src/animationUtils";
 import { VideoID } from "../../maze-utils/src/video";

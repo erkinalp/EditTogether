@@ -1,5 +1,5 @@
 import * as React from "react";
-import ResetIcon from "../svgIcons/resetIcon";
+import ResetIcon from "../svg-icons/resetIcon";
 import { TitleFormatting } from "../config/config";
 import { formatTitleInternal } from "../titles/titleFormatter";
 import { FormattedText } from "./FormattedTextComponent";

@@ -15,11 +15,11 @@ import { sendRequestToServer } from "../utils/requests";
 import { objectToURI } from "../../maze-utils/src";
 import { logError } from "../utils/logger";
 import { YourWorkComponent } from "../popup/YourWorkComponent";
-import PersonIcon from "../svgIcons/personIcon";
-import QuestionIcon from "../svgIcons/questionIcon";
-import ExclamationIcon from "../svgIcons/exclamationIcon";
-import CursorIcon from "../svgIcons/cursorIcon";
-import FontIcon from "../svgIcons/fontIcon";
+import PersonIcon from "../svg-icons/personIcon";
+import QuestionIcon from "../svg-icons/questionIcon";
+import ExclamationIcon from "../svg-icons/exclamationIcon";
+import CursorIcon from "../svg-icons/cursorIcon";
+import FontIcon from "../svg-icons/fontIcon";
 import { Tooltip } from "../utils/tooltip";
 
 import { ToggleOptionComponent } from "../popup/ToggleOptionComponent";
