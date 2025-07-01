@@ -2427,7 +2427,7 @@ async function sendSubmitMessage(): Promise<boolean> {
     }
 
     // Add loading animation
-    playerButtons.submit.image.src = chrome.runtime.getURL("icons/PlayerUploadIconSponsorBlocker.svg");
+    playerButtons.submit.image.src = chrome.runtime.getURL("icons/PlayerUploadIconEditTogether.svg");
     const stopAnimation = AnimationUtils.applyLoadingAnimation(playerButtons.submit.button, 1, () => updateEditButtonsOnPlayer());
 
     //check if a sponsor exceeds the duration of the video

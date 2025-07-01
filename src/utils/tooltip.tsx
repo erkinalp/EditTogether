@@ -2,6 +2,6 @@ import { GenericTooltip, TooltipProps } from "../../maze-utils/src/components/To
 
 export class Tooltip extends GenericTooltip {
     constructor(props: TooltipProps) {
-        super(props, "icons/logo.svg")
+        super(props, "icons/pencil.svg")
     }
 }

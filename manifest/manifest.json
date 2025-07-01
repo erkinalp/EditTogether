@@ -6,13 +6,13 @@
     "description": "__MSG_editTogetherDescription__",
     "homepage_url": "https://edittogether.ajay.app",
     "icons": {
-        "16": "icons/IconSponsorBlocker16px.png",
-        "32": "icons/IconSponsorBlocker32px.png",
-        "64": "icons/IconSponsorBlocker64px.png",
-        "128": "icons/IconSponsorBlocker128px.png",
-        "256": "icons/IconSponsorBlocker256px.png",
-        "512": "icons/IconSponsorBlocker512px.png",
-        "1024": "icons/IconSponsorBlocker1024px.png"
+        "16": "icons/pencil-16px.png",
+        "32": "icons/pencil-32px.png",
+        "64": "icons/pencil-64px.png",
+        "128": "icons/pencil-128px.png",
+        "256": "icons/pencil-256px.png",
+        "512": "icons/pencil-512px.png",
+        "1024": "icons/pencil-1024px.png"
     },
     "permissions": [
         "storage",
@@ -24,4 +24,4 @@
         "page": "options/options.html",
         "open_in_tab": true
     }
-}    
+}        

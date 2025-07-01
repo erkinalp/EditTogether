@@ -8,8 +8,8 @@
   ],
   "web_accessible_resources": [{
     "resources": [
-      "icons/LogoEditTogether256px.png",
-      "icons/IconEditTogether256px.png",
+      "icons/pencil.svg",
+      "icons/pencil-256px.png",
       "icons/PlayerStartIconEditTogether.svg",
       "icons/PlayerStopIconEditTogether.svg",
       "icons/PlayerUploadIconEditTogether.svg",
@@ -106,45 +106,45 @@
     "default_title": "EditTogether",
     "default_popup": "popup.html",
     "default_icon": {
-        "16": "icons/IconEditTogether16px.png",
-        "32": "icons/IconEditTogether32px.png",
-        "64": "icons/IconEditTogether64px.png",
-        "128": "icons/IconEditTogether128px.png"
+        "16": "icons/pencil-16px.png",
+        "32": "icons/pencil-32px.png",
+        "64": "icons/pencil-64px.png",
+        "128": "icons/pencil-128px.png"
     },
     "theme_icons": [
         {
-            "light": "icons/IconEditTogether16px.png",
-            "dark": "icons/IconEditTogether16px.png",
+            "light": "icons/pencil-16px.png",
+            "dark": "icons/pencil-16px.png",
             "size": 16
         },
         {
-            "light": "icons/IconEditTogether32px.png",
-            "dark": "icons/IconEditTogether32px.png",
+            "light": "icons/pencil-32px.png",
+            "dark": "icons/pencil-32px.png",
             "size": 32
         },
         {
-            "light": "icons/IconEditTogether64px.png",
-            "dark": "icons/IconEditTogether64px.png",
+            "light": "icons/pencil-64px.png",
+            "dark": "icons/pencil-64px.png",
             "size": 64
         },
         {
-            "light": "icons/IconEditTogether128px.png",
-            "dark": "icons/IconEditTogether128px.png",
+            "light": "icons/pencil-128px.png",
+            "dark": "icons/pencil-128px.png",
             "size": 128
         },
         {
-            "light": "icons/IconEditTogether256px.png",
-            "dark": "icons/IconEditTogether256px.png",
+            "light": "icons/pencil-256px.png",
+            "dark": "icons/pencil-256px.png",
             "size": 256
         },
         {
-            "light": "icons/IconEditTogether512px.png",
-            "dark": "icons/IconEditTogether512px.png",
+            "light": "icons/pencil-512px.png",
+            "dark": "icons/pencil-512px.png",
             "size": 512
         },
         {
-            "light": "icons/IconEditTogether1024px.png",
-            "dark": "icons/IconEditTogether1024px.png",
+            "light": "icons/pencil-1024px.png",
+            "dark": "icons/pencil-1024px.png",
             "size": 1024
         }
     ]

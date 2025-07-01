@@ -41,7 +41,7 @@ export const CasualChoiceComponent = () => {
                     />
                 </div>
 
-                <img src={chrome.runtime.getURL("icons/logo.svg")}
+                <img src={chrome.runtime.getURL("icons/pencil.svg")}
                     alt="logo"
                     className="casualChoiceLogo"
                     draggable={false}

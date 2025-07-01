@@ -69,7 +69,7 @@ export const brandingBoxSelector = !onMobile()
 export const watchPageThumbnailSelector = ".ytp-cued-thumbnail-overlay";
 
 const twoRingLogo = chrome.runtime.getURL("icons/logo-2r.svg");
-const threeRingLogo = chrome.runtime.getURL("icons/logo.svg");
+const threeRingLogo = chrome.runtime.getURL("icons/pencil.svg");
 const casualLogo = chrome.runtime.getURL("icons/logo-casual.svg");
 
 const videoBrandingInstances: Record<VideoID, VideoBrandingInstance> = {}
