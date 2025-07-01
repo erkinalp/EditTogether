@@ -572,7 +572,7 @@ async function createShowOriginalButton(element: HTMLElement, originalTitleEleme
 
     buttonElement.draggable = false;
     buttonImage.className = "cbShowOriginalImage";
-    buttonImage.src = chrome.runtime.getURL("icons/logo.svg");
+    buttonImage.src = chrome.runtime.getURL("icons/pencil.svg");
     buttonElement.appendChild(buttonImage);
 
     if (!await shouldDefaultToCustom(videoID)) {
