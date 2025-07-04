@@ -18,6 +18,7 @@ export enum LoadingStatus {
 }
 
 export const PopupComponent = () => {
+    const [status] = React.useState<LoadingStatus>(LoadingStatus.NoSegmentsFound);
     const [extensionEnabled, setExtensionEnabled] = React.useState(Config.config!.extensionEnabled);
     const [replaceTitles, setReplaceTitles] = React.useState(Config.config!.replaceTitles);
     const [replaceThumbnails, setReplaceThumbnails] = React.useState(Config.config!.replaceThumbnails);
@@ -34,6 +35,10 @@ export const PopupComponent = () => {
                     />
                 </p>
             </header>
+
+            <p id="videoFound" className="u-mZ grey-text">
+                {getVideoStatusText(status)}
+            </p>
 
             {
                 <>
@@ -172,3 +177,18 @@ export const PopupComponent = () => {
         </>
     );
 };
+
+function getVideoStatusText(status: LoadingStatus): string {
+    switch (status) {
+        case LoadingStatus.Loading:
+            return chrome.i18n.getMessage("Loading");
+        case LoadingStatus.SegmentsFound:
+            return chrome.i18n.getMessage("sponsorFound");
+        case LoadingStatus.NoSegmentsFound:
+            return chrome.i18n.getMessage("sponsor404");
+        case LoadingStatus.Failed:
+            return chrome.i18n.getMessage("connectionError");
+        case LoadingStatus.Loaded:
+            return chrome.i18n.getMessage("sponsor404");
+    }
+}

@@ -53,9 +53,13 @@ export const SegmentListComponent = (props: SegmentListComponentProps) => {
         }
     };
 
+    const hasSegments = props.segments.some(s => s.actionType !== ActionType.Chapter);
+    const hasChapters = props.segments.some(s => s.actionType === ActionType.Chapter);
+    const showTabs = hasSegments || hasChapters;
+
     return (
         <div id="issueReporterContainer">
-            <div id="issueReporterTabs" className={props.segments && props.segments.find(s => s.actionType === ActionType.Chapter) ? "" : "hidden"}>
+            <div id="issueReporterTabs" className={showTabs ? "" : "hidden"}>
                 <span id="issueReporterTabSegments" className={tab === SegmentListTab.Segments ? "sbSelected" : ""} onClick={() => {
                     setTab(SegmentListTab.Segments);
                 }}>
