@@ -1,7 +1,7 @@
 import { VideoID, getVideo, getVideoID, getYouTubeVideoID } from "../maze-utils/src/video";
 import { ThumbnailSubmission, ThumbnailWithRandomTimeResult, fetchVideoMetadata, isLiveSync } from "./thumbnails/thumbnailData";
 import { getCurrentPageTitle, TitleResult, TitleSubmission } from "./titles/titleData";
-import { FetchResponse, sendRequestToCustomServer } from "../maze-utils/src/background-request-proxy";
+import { FetchResponse, FetchResponseBinary, sendBinaryRequestToCustomServer } from "../maze-utils/src/background-request-proxy";
 import { BrandingLocation, BrandingResult, CasualVoteInfo, replaceCurrentVideoBranding, updateBrandingForVideo } from "./videoBranding/videoBranding";
 import { logError } from "./utils/logger";
 import { getHash } from "../maze-utils/src/hash";
@@ -570,7 +570,7 @@ export async function submitVideoBrandingAndHandleErrors(title: TitleSubmission 
 }
 
 export function sendRequestToThumbnailCache(videoID: string, time?: number, title?: string,
-        officialTime = false, isLivestream = false, generateNow = false): Promise<FetchResponse> {
+        officialTime = false, isLivestream = false, generateNow = false): Promise<FetchResponseBinary> {
     const data = {
         videoID,
         officialTime,
@@ -586,7 +586,7 @@ export function sendRequestToThumbnailCache(videoID: string, time?: number, titl
         data["title"] = title;
     }
     
-    return sendRequestToCustomServer("GET", `${Config.config?.thumbnailServerAddress}/api/v1/getThumbnail`, data);
+    return sendBinaryRequestToCustomServer("GET", `${Config.config?.thumbnailServerAddress}/api/v1/getThumbnail`, data);
 }
 
 export function getThumbnailUrl(videoID: string, time: number): string {

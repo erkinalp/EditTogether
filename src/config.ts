@@ -3,10 +3,7 @@ import * as invidiousList from "../ci/invidiouslist.json";
 import { Category, CategorySelection, CategorySkipOption, NoticeVisibilityMode, PreviewBarOption, SponsorTime, VideoID, SponsorHideType } from "./types";
 import { Keybind, ProtoConfig, keybindEquals } from "../maze-utils/src/config";
 import { HashedValue } from "../maze-utils/src/hash";
-
-export interface Permission {
-    canSubmit: boolean;
-}
+import { Permission, AdvancedSkipRuleSet } from "./utils/skipRule";
 
 interface SBConfig {
     userID: string;
@@ -140,6 +137,8 @@ interface SBStorage {
 
     /* Contains unsubmitted segments that the user has created. */
     unsubmittedSegments: Record<string, SponsorTime[]>;
+
+    skipRules: AdvancedSkipRuleSet[];
 }
 
 class ConfigClass extends ProtoConfig<SBConfig, SBStorage> {
@@ -159,6 +158,15 @@ class ConfigClass extends ProtoConfig<SBConfig, SBStorage> {
 }
 
 function migrateOldSyncFormats(config: SBConfig) {
+    if (!config["changeChapterColor"]) {
+        config.barTypes["chapter"].color = "#ffd983";
+        config["changeChapterColor"] = true;
+        chrome.storage.sync.set({
+            "changeChapterColor": true,
+            "barTypes": config.barTypes
+        });
+    }
+
     if (config["showZoomToFillError"]) {
         chrome.storage.sync.remove("showZoomToFillError");
     }
@@ -456,7 +464,7 @@ const syncDefaults = {
             opacity: "0.7"
         },
         "chapter": {
-            color: "#fff",
+            color: "#ffd983",
             opacity: "0"
         },
     }
@@ -467,7 +475,8 @@ const localDefaults = {
     navigationApiAvailable: null,
     alreadyInstalled: false,
 
-    unsubmittedSegments: {}
+    unsubmittedSegments: {},
+    skipRules: []
 };
 
 const Config = new ConfigClass(syncDefaults, localDefaults, migrateOldSyncFormats);

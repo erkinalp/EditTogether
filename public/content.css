@@ -102,10 +102,6 @@ div:hover > #previewbar.sbNotInvidious {
 	display: none !important;
 }
 
-.ytp-tooltip.sponsorCategoryTooltipVisible:not(.sponsorTooltipHasYTChapters) {
-	transform: translateY(-1em) !important;
-}
-
 /* Pull up for precise seeking */
 .ytp-tooltip.sponsorCategoryTooltipVisible .ytp-tooltip-edu {
 	transform: translateY(-1em) !important;
@@ -113,6 +109,14 @@ div:hover > #previewbar.sbNotInvidious {
 
 .ytp-tooltip.sponsorCategoryTooltipVisible.sponsorTwoTooltips {
 	transform: translateY(-2em) !important;
+}
+
+.ytp-tooltip.sponsorCategoryTooltipVisible.sponsorHasOriginalTooltip {
+	transform: translateY(-2em) !important;
+}
+
+.ytp-tooltip.sponsorCategoryTooltipVisible.sponsorTwoTooltips.sponsorHasOriginalTooltip {
+	transform: translateY(-3em) !important;
 }
 
 .ytp-big-mode .ytp-tooltip.sponsorCategoryTooltipVisible {

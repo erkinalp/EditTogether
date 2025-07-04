@@ -1,11 +1,10 @@
 import { DataCache } from "../../maze-utils/src/cache";
 import { getHash, HashedValue } from "../../maze-utils/src/hash";
-import Config from "../config";
+import Config, {  } from "../config";
 import * as CompileConfig from "../../config.json";
 import { ActionType, ActionTypes, SponsorSourceType, SponsorTime, VideoID } from "../types";
 import { getHashParams } from "./pageUtils";
 import { asyncRequestToServer } from "./requests";
-import { extensionUserAgent } from "../../maze-utils/src";
 
 const segmentDataCache = new DataCache<VideoID, SegmentResponse>(() => {
     return {
@@ -44,8 +43,6 @@ export async function getSegmentsForVideo(videoID: VideoID, ignoreCache: boolean
 }
 
 async function fetchSegmentsForVideo(videoID: VideoID): Promise<SegmentResponse> {
-    const categories: string[] = Config.config.categorySelections.map((category) => category.name);
-
     const extraRequestData: Record<string, unknown> = {};
     const hashParams = getHashParams();
     if (hashParams.requiredSegment) extraRequestData.requiredSegment = hashParams.requiredSegment;
@@ -65,7 +62,7 @@ async function fetchSegmentsForVideo(videoID: VideoID): Promise<SegmentResponse>
         const receivedSegments: SponsorTime[] = JSON.parse(response.responseText)
                     ?.filter((video) => video.videoID === videoID)
                     ?.map((video) => video.segments)?.[0]
-                    ?.filter((segment) => enabledActionTypes.includes(segment.actionType) && categories.includes(segment.category))
+                    ?.filter((segment) => enabledActionTypes.includes(segment.actionType))
                     ?.map((segment) => ({
                         ...segment,
                         source: SponsorSourceType.Server

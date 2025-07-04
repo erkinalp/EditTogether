@@ -1,7 +1,7 @@
 {
     "name": "__MSG_editTogetherFullName__",
     "short_name": "EditTogether",
-    "version": "5.12.4",
+    "version": "5.13.2",
     "default_locale": "en",
     "description": "__MSG_editTogetherDescription__",
     "homepage_url": "https://edittogether.ajay.app",
@@ -24,4 +24,4 @@
         "page": "options/options.html",
         "open_in_tab": true
     }
-}        
+}                
