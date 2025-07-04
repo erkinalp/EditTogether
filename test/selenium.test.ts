@@ -4,13 +4,18 @@ import * as Path from "path";
 
 import * as fs from "fs";
 
-test("Selenium Chrome test", async () => {
+xtest("Selenium Chrome test", async () => {
     let driver: WebDriver;
     try {
         driver = await setup();   
     } catch (e) {
         console.warn("A browser is probably not installed, skipping selenium tests");
         console.warn(e);
+
+        if (String(e).includes("This version of ChromeDriver only supports")) {
+            // Count as failure
+            throw e;
+        }
 
         return;
     }

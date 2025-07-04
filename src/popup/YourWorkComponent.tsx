@@ -7,6 +7,7 @@ import PencilIcon from "../svg-icons/pencilIcon";
 import ClipboardIcon from "../svg-icons/clipboardIcon";
 import CheckIcon from "../svg-icons/checkIcon";
 import { FormattedText } from "./FormattedTextComponent";
+import { showDonationLink } from "../utils/configUtils";
 
 interface YourWorkComponentProps {
     titleFormatting?: TitleFormatting;
@@ -36,7 +37,8 @@ export const YourWorkComponent = ({ titleFormatting }: YourWorkComponentProps) =
                 setThumbnailSubmissionCount(userInfo.thumbnailSubmissionCount);
                 setCasualSubmissionCount(userInfo.casualSubmissionCount);
 
-                Config.config!.vip = userInfo.vip;
+                Config.config!.isVip = userInfo.vip;
+                Config.config!.permissions = userInfo.permissions;
             }
         })();
     }, []);

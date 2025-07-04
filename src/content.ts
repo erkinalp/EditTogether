@@ -52,6 +52,7 @@ import { isMobileControlsOpen } from "./utils/mobileUtils";
 import { defaultPreviewTime } from "./utils/constants";
 import { onVideoPage } from "../maze-utils/src/pageInfo";
 import { getSegmentsForVideo } from "./utils/segmentData";
+import { getCategoryDefaultSelection, getCategorySelection } from "./utils/skipRule";
 
 cleanPage();
 
@@ -221,7 +222,7 @@ function messageListener(request: Message, sender: unknown, sendResponse: (respo
             sendResponse({
                 found: sponsorDataFound,
                 status: lastResponseStatus,
-                sponsorTimes: sponsorTimes,
+                sponsorTimes: sponsorTimes.filter((segment) => getCategorySelection(segment).option !== CategorySkipOption.Disabled),
                 time: getCurrentTime() ?? 0,
                 onMobileYouTube: isOnMobileYouTube(),
                 videoID: getVideoID(),
@@ -299,7 +300,6 @@ function messageListener(request: Message, sender: unknown, sendResponse: (respo
                 break;
             }
             loopedChapter = {...utils.getSponsorTimeFromUUID(sponsorTimes, request.UUID)};
-            loopedChapter.actionType = ActionType.Skip;
             loopedChapter.segment = [loopedChapter.segment[1], loopedChapter.segment[0]];
             break;
         case "importSegments": {
@@ -312,7 +312,7 @@ function messageListener(request: Message, sender: unknown, sendResponse: (respo
                             && s.description === segment.description)) {
                     const hasChaptersPermission = (Config.config.showCategoryWithoutPermission
                         || Config.config.permissions["chapter"]);
-                    if (segment.category === "chapter" && (!utils.getCategorySelection("chapter") || !hasChaptersPermission)) {
+                    if (segment.category === "chapter" && (!getCategoryDefaultSelection("chapter") || !hasChaptersPermission)) {
                         segment.category = "chooseACategory" as Category;
                         segment.actionType = ActionType.Skip;
                         segment.description = "";
@@ -734,7 +734,7 @@ async function startSponsorSchedule(includeIntersectingSegments = false, current
                     }
                 }
 
-                if (utils.getCategorySelection(currentSkip.category)?.option === CategorySkipOption.ManualSkip
+                if (getCategorySelection(currentSkip)?.option === CategorySkipOption.ManualSkip
                         || currentSkip.actionType === ActionType.Mute) {
                     forcedSkipTime = skipTime[0] + 0.001;
                 } else {
@@ -816,6 +816,7 @@ async function startSponsorSchedule(includeIntersectingSegments = false, current
             if (Config.config.showUpcomingNotice && getCurrentTime() < skippingSegments[0].segment[0] 
                     && !sponsorTimesSubmitting?.some((segment) => segment.segment === currentSkip.segment)
                     && [ActionType.Skip, ActionType.Mute].includes(skippingSegments[0].actionType)
+                    && getCategorySelection(skippingSegments[0])?.option > CategorySkipOption.ShowOverlay
                     && !getVideo()?.paused) {
                 const maxPopupTime = 3000;
                 const timeUntilPopup = Math.max(0, offsetDelayTime - maxPopupTime);
@@ -1252,24 +1253,27 @@ async function sponsorsLookup(keepOldSubmissions = true, ignoreCache = false) {
         }
     }
 
+    notifyPopupOfSegments();
     importExistingChapters(true);
 
+    if (Config.config.isVip) {
+        lockedCategoriesLookup();
+    }
+}
+
+function notifyPopupOfSegments(): void {
     // notify popup of segment changes
     chrome.runtime.sendMessage({
         message: "infoUpdated",
         found: sponsorDataFound,
         status: lastResponseStatus,
-        sponsorTimes: sponsorTimes,
+        sponsorTimes: sponsorTimes.filter((segment) => getCategorySelection(segment).option !== CategorySkipOption.Disabled),
         time: getCurrentTime() ?? 0,
         onMobileYouTube: isOnMobileYouTube(),
         videoID: getVideoID(),
         loopedChapter: loopedChapter?.UUID,
         channelWhitelisted
     });
-
-    if (Config.config.isVip) {
-        lockedCategoriesLookup();
-    }
 }
 
 function importExistingChapters(wait: boolean) {
@@ -1352,10 +1356,12 @@ function startSkipScheduleCheckingForStartSponsors() {
         // For highlight category
         const poiSegments = sponsorTimes
             .filter((time) => time.segment[1] > getCurrentTime()
-                && time.actionType === ActionType.Poi && time.hidden === SponsorHideType.Visible)
+                && time.actionType === ActionType.Poi
+                && time.hidden === SponsorHideType.Visible
+                && getCategorySelection(time).option !== CategorySkipOption.Disabled)
             .sort((a, b) => b.segment[0] - a.segment[0]);
         for (const time of poiSegments) {
-            const skipOption = utils.getCategorySelection(time.category)?.option;
+            const skipOption = getCategorySelection(time)?.option;
             if (skipOption !== CategorySkipOption.ShowOverlay) {
                 skipToTime({
                     v: getVideo(),
@@ -1403,7 +1409,7 @@ function updatePreviewBar(): void {
     const previewBarSegments: PreviewBarSegment[] = [];
     if (sponsorTimes) {
         sponsorTimes.forEach((segment) => {
-            if (segment.hidden !== SponsorHideType.Visible) return;
+            if (segment.hidden !== SponsorHideType.Visible || getCategorySelection(segment).option === CategorySkipOption.Disabled) return;
 
             previewBarSegments.push({
                 segment: segment.segment as [number, number],
@@ -1457,6 +1463,9 @@ async function channelIDChange(channelIDInfo: ChannelIDInfo) {
 
     // check if the start of segments were missed
     if (Config.config.forceChannelCheck && sponsorTimes?.length > 0) startSkipScheduleCheckingForStartSponsors();
+
+    updatePreviewBar();
+    notifyPopupOfSegments();
 }
 
 function videoElementChange(newVideo: boolean, video: HTMLVideoElement): void {
@@ -1504,12 +1513,12 @@ function getNextSkipIndex(currentTime: number, includeIntersectingSegments: bool
         {array: ScheduledTime[]; index: number; endIndex: number; extraIndexes: number[]; openNotice: boolean} {
 
     const autoSkipSorter = (segment: ScheduledTime) => {
-        const skipOption = utils.getCategorySelection(segment.category)?.option;
+        const skipOption = getCategorySelection(segment)?.option;
         if (segment.hidden !== SponsorHideType.Visible) {
             // Hidden segments sometimes end up here if another segment is at the same time, use them last
             return 3;
         } else if ((skipOption === CategorySkipOption.AutoSkip || shouldAutoSkip(segment))
-                && segment.actionType === ActionType.Skip) {
+                && (segment.actionType === ActionType.Skip || segment.actionType === ActionType.Chapter)) {
             return 0;
         } else if (skipOption !== CategorySkipOption.ShowOverlay) {
             return 1;
@@ -1728,6 +1737,7 @@ function skipToTime({v, skipTime, skippingSegments, openNotice, forceAutoSkip, u
             && getCurrentTime() !== skipTime[1]) {
         switch(skippingSegments[0].actionType) {
             case ActionType.Poi:
+            case ActionType.Chapter:
             case ActionType.Skip: {
                 // Fix for looped videos not working when skipping to the end #426
                 // for some reason you also can't skip to 1 second before the end
@@ -1850,7 +1860,7 @@ function unskipSponsorTime(segment: SponsorTime, unskipTime: number = null, forc
         videoMuted = false;
     }
 
-    if (forceSeek || segment.actionType === ActionType.Skip || voteNotice) {
+    if (forceSeek || segment.actionType === ActionType.Skip || segment.actionType === ActionType.Chapter || voteNotice) {
         //add a tiny bit of time to make sure it is not skipped again
         setCurrentTime(unskipTime ?? segment.segment[0] + 0.001);
     }
@@ -1921,7 +1931,7 @@ function shouldAutoSkip(segment: SponsorTime): boolean {
     }
 
     return (!Config.config.manualSkipOnFullVideo || !sponsorTimes?.some((s) => s.category === segment.category && s.actionType === ActionType.Full))
-        && (utils.getCategorySelection(segment.category)?.option === CategorySkipOption.AutoSkip ||
+        && (getCategorySelection(segment)?.option === CategorySkipOption.AutoSkip ||
             (Config.config.autoSkipOnMusicVideos && canSkipNonMusic && sponsorTimes?.some((s) => s.category === "music_offtopic")
                 && segment.actionType === ActionType.Skip)
             || sponsorTimesSubmitting.some((s) => s.segment === segment.segment))
@@ -1930,15 +1940,14 @@ function shouldAutoSkip(segment: SponsorTime): boolean {
 
 function shouldSkip(segment: SponsorTime): boolean {
     return (segment.actionType !== ActionType.Full
-            && segment.source !== SponsorSourceType.YouTube
-            && utils.getCategorySelection(segment.category)?.option !== CategorySkipOption.ShowOverlay)
+            && getCategorySelection(segment)?.option > CategorySkipOption.ShowOverlay)
             || (Config.config.autoSkipOnMusicVideos && sponsorTimes?.some((s) => s.category === "music_offtopic")
                 && segment.actionType === ActionType.Skip)
             || isLoopedChapter(segment);
 }
 
-function isLoopedChapter(segment: SponsorTime) :boolean{
-    return !!segment && !!loopedChapter && segment.actionType === ActionType.Skip && segment.segment[1] != undefined
+function isLoopedChapter(segment: SponsorTime): boolean{
+    return !!segment && !!loopedChapter && segment.segment[1] != undefined
         && segment.segment[0] === loopedChapter.segment[0] && segment.segment[1] === loopedChapter.segment[1];
 }
 
