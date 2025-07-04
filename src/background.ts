@@ -84,18 +84,8 @@ chrome.runtime.onMessage.addListener(function (request, sender, callback) {
 	}
 });
 
-chrome.runtime.onMessageExternal.addListener((request, sender, callback) => {
-    if (false) {
-        if (request.message === "requestConfig") {
-            callback({
-                userID: Config.config.userID,
-                allowExpirements: Config.config.allowExpirements,
-                showDonationLink: Config.config.showDonationLink,
-                showUpsells: Config.config.showUpsells,
-                darkMode: Config.config.darkMode,
-            })
-        }
-    }
+chrome.runtime.onMessageExternal.addListener(() => {
+    return false;
 });
 
 chrome.runtime.onConnect.addListener((port) => {

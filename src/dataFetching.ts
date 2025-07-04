@@ -1,7 +1,7 @@
 import { VideoID, getVideo, getVideoID, getYouTubeVideoID } from "../maze-utils/src/video";
 import { ThumbnailSubmission, ThumbnailWithRandomTimeResult, fetchVideoMetadata, isLiveSync } from "./thumbnails/thumbnailData";
 import { getCurrentPageTitle, TitleResult, TitleSubmission } from "./titles/titleData";
-import { FetchResponse, FetchResponseBinary, sendRequestToCustomServer, sendBinaryRequestToCustomServer } from "../maze-utils/src/background-request-proxy";
+import { FetchResponse, FetchResponseBinary, sendBinaryRequestToCustomServer } from "../maze-utils/src/background-request-proxy";
 import { BrandingLocation, BrandingResult, CasualVoteInfo, replaceCurrentVideoBranding, updateBrandingForVideo } from "./videoBranding/videoBranding";
 import { logError } from "./utils/logger";
 import { getHash } from "../maze-utils/src/hash";
