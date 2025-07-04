@@ -37,8 +37,7 @@ export const YourWorkComponent = ({ titleFormatting }: YourWorkComponentProps) =
                 setThumbnailSubmissionCount(userInfo.thumbnailSubmissionCount);
                 setCasualSubmissionCount(userInfo.casualSubmissionCount);
 
-                Config.config!.isVip = userInfo.vip;
-                Config.config!.permissions = userInfo.permissions;
+                Config.config!.vip = userInfo.vip;
             }
         })();
     }, []);
