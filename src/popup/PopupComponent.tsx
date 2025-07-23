@@ -165,7 +165,7 @@ export const PopupComponent = () => {
                         titleFormatting={titleFormatting}
                     />
                 </a>
-                <a href="https://matrix.to/#/#sponsor:ajay.app?via=ajay.app&via=matrix.org&via=mozilla.org" target="_blank" rel="noreferrer">
+                <a href="https://matrix.to/#/#edittogether:matrix.org" target="_blank" rel="noreferrer">
                     <FormattedText
                         text="Matrix"
                         titleFormatting={titleFormatting}

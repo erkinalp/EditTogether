@@ -1,7 +1,7 @@
 import { objectToURI } from "../../maze-utils/src";
+import { getCurrentPageTitle } from "../../maze-utils/src/elements";
 import { getHash } from "../../maze-utils/src/hash";
 import Config from "../config/config";
-import { getCurrentPageTitle } from "../titles/titleData";
 import { cleanEmojis, cleanFancyText, cleanPunctuation, isWordCustomCapitalization } from "../titles/titleFormatter";
 import { sendRequestToServer } from "../utils/requests";
 import { Tooltip } from "../utils/tooltip";
@@ -180,7 +180,7 @@ function showAutoWarningIfRequiredInternal(title: string, element: HTMLElement):
 
                     window.open(`https://chat.sponsor.ajay.app/#${objectToURI("", {
                         displayName: getChatDisplayName(name),
-                        customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://discord.gg/SponsorBlock\nhttps://matrix.to/#/#sponsor:ajay.app?via=matrix.org`,
+                        customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://discord.gg/SponsorBlock\nhttps://matrix.to/#/#edittogether:matrix.org?via=matrix.org`,
                         bigDescription: true
                     }, false)}`);
                 }

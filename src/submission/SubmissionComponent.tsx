@@ -1,6 +1,6 @@
 import * as React from "react";
 import { CustomThumbnailResult, ThumbnailSubmission, isLiveSync } from "../thumbnails/thumbnailData";
-import { getCurrentPageTitle, TitleSubmission } from "../titles/titleData";
+import { TitleSubmission } from "../titles/titleData";
 import { BrandingResult } from "../videoBranding/videoBranding";
 import { ThumbnailType } from "./ThumbnailComponent";
 import { RenderedThumbnailSubmission, ThumbnailDrawerComponent } from "./ThumbnailDrawerComponent";
@@ -26,6 +26,7 @@ import { ToggleOptionComponent } from "../popup/ToggleOptionComponent";
 import { FormattedText } from "../popup/FormattedTextComponent";
 import { isAutoWarningShown } from "./autoWarning";
 import { getAntiTranslatedTitle } from "../titles/titleAntiTranslateData";
+import { getCurrentPageTitle } from "../../maze-utils/src/elements";
 
 export interface SubmissionComponentProps {
     videoID: VideoID;
@@ -399,7 +400,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
                         <a className="cbNoticeButton"
                             href={`https://chat.sponsor.ajay.app/#${objectToURI("", {
                                 displayName: getChatDisplayName(chatDisplayName),
-                                customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://discord.gg/SponsorBlock\nhttps://matrix.to/#/#sponsor:ajay.app?via=matrix.org`,
+                                customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://discord.gg/SponsorBlock\nhttps://matrix.to/#/#edittogether:matrix.org`,
                                 bigDescription: true
                             }, false)}`}
                             target="_blank"
