@@ -1,10 +1,10 @@
 {
     "name": "__MSG_editTogetherFullName__",
     "short_name": "EditTogether",
-    "version": "5.13.2",
+    "version": "5.13.4",
     "default_locale": "en",
     "description": "__MSG_editTogetherDescription__",
-    "homepage_url": "https://edittogether.ajay.app",
+    "homepage_url": "https://github.com/erkinalp/EditTogether",
     "icons": {
         "16": "icons/pencil-16px.png",
         "32": "icons/pencil-32px.png",
@@ -24,4 +24,4 @@
         "page": "options/options.html",
         "open_in_tab": true
     }
-}                
+}                                                                
