@@ -1,7 +1,7 @@
 {
     "name": "__MSG_editTogetherFullName__",
     "short_name": "EditTogether",
-    "version": "5.13.4",
+    "version": "5.14",
     "default_locale": "en",
     "description": "__MSG_editTogetherDescription__",
     "homepage_url": "https://github.com/erkinalp/EditTogether",
@@ -24,4 +24,4 @@
         "page": "options/options.html",
         "open_in_tab": true
     }
-}                                                                
+}                                                                                                                                

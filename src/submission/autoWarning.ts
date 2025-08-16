@@ -1,5 +1,4 @@
 import { objectToURI } from "../../maze-utils/src";
-import { getCurrentPageTitle } from "../../maze-utils/src/elements";
 import { getHash } from "../../maze-utils/src/hash";
 import Config from "../config/config";
 import { cleanEmojis, cleanFancyText, cleanPunctuation, isWordCustomCapitalization } from "../titles/titleFormatter";
@@ -126,7 +125,7 @@ export function showAutoWarningIfRequired(title: string, element: HTMLElement): 
 function showAutoWarningIfRequiredInternal(title: string, element: HTMLElement): void {
     timeout = null;
 
-    const originalTitle = getCurrentPageTitle() || "";
+    const originalTitle = document.title || "";
     const warning = getAutoWarning(title, originalTitle);
     if (warning && warning.id !== currentWarningId) {
         activeTooltip?.close();

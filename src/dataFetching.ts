@@ -17,7 +17,6 @@ import { updateSubmitButton } from "./video";
 import { sendRequestToServer } from "./utils/requests";
 import { thumbnailDataCache } from "./thumbnails/thumbnailDataCache";
 import { getAutoWarning } from "./submission/autoWarning";
-import { getCurrentPageTitle } from "../maze-utils/src/elements";
 
 interface VideoBrandingCacheRecord extends BrandingResult {
     lastUsed: number;
@@ -508,7 +507,7 @@ export async function submitVideoBranding(videoID: VideoID, title: TitleSubmissi
         Config.config!.firstThumbnailSubmitted = true;
     }
 
-    const wasWarned = !!title && !!getAutoWarning(title.title, getCurrentPageTitle() || "");
+    const wasWarned = !!title && !!getAutoWarning(title.title, document.title || "");
 
     const result = await sendRequestToServer("POST", "/api/branding", {
         userID: Config.config!.userID,
@@ -533,7 +532,7 @@ export async function submitVideoCasualVote(videoID: VideoID, categories: string
         videoID,
         categories,
         downvote,
-        title: getCurrentPageTitle(),
+        title: document.title,
         userAgent: extensionUserAgent(),
     });
 
