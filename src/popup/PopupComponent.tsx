@@ -27,7 +27,7 @@ export const PopupComponent = () => {
     return (
         <>
             <header className="sbPopupLogo">
-                <img src="icons/pencil.svg" alt="EditTogether Logo" width="40" height="40" id="dearrowPopupLogo"/>
+                <img src="icons/pencil.svg" alt="EditTogether Logo" width="40" height="40" id="edittogetherPopupLogo"/>
                 <p className="u-mZ">
                     <FormattedText
                         text="EditTogether"

@@ -62,6 +62,7 @@ interface SBConfig {
     };
     scrollToEditTimeUpdate: boolean;
     categoryPillUpdate: boolean;
+    hookUpdate: boolean;
     showChapterInfoMessage: boolean;
     darkMode: boolean;
     showCategoryGuidelines: boolean;
@@ -306,7 +307,7 @@ const syncDefaults = {
     hideSkipButtonPlayerControls: false,
     hideDiscordLaunches: 0,
     hideDiscordLink: false,
-    invidiousInstances: ["invidious.snopyta.org"], // leave as default
+    invidiousInstances: [],
     supportInvidious: false,
     serverAddress: CompileConfig.serverAddress,
     minDuration: 0,
@@ -326,6 +327,7 @@ const syncDefaults = {
     skipNonMusicOnlyOnYoutubeMusic: false,
     scrollToEditTimeUpdate: false, // false means the tooltip will be shown
     categoryPillUpdate: false,
+    hookUpdate: false,
     showChapterInfoMessage: true,
     darkMode: true,
     showCategoryGuidelines: true,
@@ -439,6 +441,14 @@ const syncDefaults = {
         },
         "preview-preview": {
             color: "#005799",
+            opacity: "0.7"
+        },
+        "hook": {
+            color: "#395699",
+            opacity: "0.8"
+        },
+        "preview-hook": {
+            color: "#273963",
             opacity: "0.7"
         },
         "music_offtopic": {

@@ -24,11 +24,13 @@ if (LOAD_CLD) {
  */
 
 export async function formatTitle(title: string, isCustom: boolean, videoID: VideoID | null): Promise<string> {
-    return formatTitleInternal(title, isCustom, await getTitleFormatting(videoID), await shouldCleanEmojis(videoID), Config.config!.onlyFormatCustomTitles);
+    const shouldOnlyFormatCustom = !Config.config!.formatOriginalTitles && Config.config!.formatCustomTitles;
+    return formatTitleInternal(title, isCustom, await getTitleFormatting(videoID), await shouldCleanEmojis(videoID), shouldOnlyFormatCustom);
 }
 
 export async function formatTitleDefaultSettings(title: string, isCustom: boolean): Promise<string> {
-    return await formatTitleInternal(title, isCustom, Config.config!.titleFormatting, Config.config!.shouldCleanEmojis, Config.config!.onlyFormatCustomTitles);
+    const shouldOnlyFormatCustom = !Config.config!.formatOriginalTitles && Config.config!.formatCustomTitles;
+    return await formatTitleInternal(title, isCustom, Config.config!.titleFormatting, Config.config!.shouldCleanEmojis, shouldOnlyFormatCustom);
 }
 
 export async function formatTitleInternal(title: string, isCustom: boolean, titleFormatting: TitleFormatting, shouldCleanEmojis: boolean, onlyFormatCustomTitles = false): Promise<string> {

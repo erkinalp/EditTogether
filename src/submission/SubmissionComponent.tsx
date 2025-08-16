@@ -26,7 +26,6 @@ import { ToggleOptionComponent } from "../popup/ToggleOptionComponent";
 import { FormattedText } from "../popup/FormattedTextComponent";
 import { isAutoWarningShown } from "./autoWarning";
 import { getAntiTranslatedTitle } from "../titles/titleAntiTranslateData";
-import { getCurrentPageTitle } from "../../maze-utils/src/elements";
 
 export interface SubmissionComponentProps {
     videoID: VideoID;
@@ -82,7 +81,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
     React.useEffect(() => {
         (async () => {
             const unformattedOriginalTitle = await getAntiTranslatedTitle(props.videoID)
-                ?? getCurrentPageTitle()
+                ?? document.title
                 ?? chrome.i18n.getMessage("OriginalTitle");
             const originalTitle = await formatTitleInternal(unformattedOriginalTitle, false, TitleFormatting.SentenceCase, true);
             setOriginalTitle(originalTitle);
@@ -362,8 +361,8 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
 
                         props.submitClicked(selectedTitle ? {
                             ...selectedTitle,
-                            original: selectedTitle.title === getCurrentPageTitle()
-                                        || (!!getCurrentPageTitle() && selectedTitle.title === await formatTitleInternal(getCurrentPageTitle()!, false, TitleFormatting.SentenceCase, true))
+                            original: selectedTitle.title === document.title
+                                        || (!!document.title && selectedTitle.title === await formatTitleInternal(document.title!, false, TitleFormatting.SentenceCase, true))
                         } : null, selectedThumbnail.current, actAsVip).then((success) => {
                             if (!success) {
                                 setCurrentlySubmitting(false);

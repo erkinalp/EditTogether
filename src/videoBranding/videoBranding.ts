@@ -6,7 +6,6 @@ import { getThumbnailImageSelector, replaceThumbnail } from "../thumbnails/thumb
 import { TitleResult } from "../titles/titleData";
 import { findOrCreateShowOriginalButton, getOrCreateTitleElement, getOriginalTitleElement, hideAndUpdateShowOriginalButton as hideAndUpdateShowOriginalButton, replaceTitle } from "../titles/titleRenderer";
 import { setThumbnailListener } from "../../maze-utils/src/thumbnailManagement";
-import { getCurrentPageTitle } from "../../maze-utils/src/elements";
 import Config, { ThumbnailCacheOption } from "../config/config";
 import { logError } from "../utils/logger";
 import { getVideoCasualInfo, getVideoTitleIncludingUnsubmitted } from "../dataFetching";
@@ -528,7 +527,8 @@ export function setupOptionChangeListener(): void {
             "ignoreAbThumbnails",
             "showOriginalOnHover",
             "showLiveCover",
-            "onlyFormatCustomTitles"
+            "formatCustomTitles",
+            "formatOriginalTitles"
         ];
 
         if (settingsToReload.some((name) => (changes[name] && changes[name].newValue !== changes[name].oldValue))) {
@@ -622,7 +622,7 @@ export async function shouldShowCasualOnVideo(videoID: VideoID, brandingLocation
         return unsubmittedInfo.casual;
     }
 
-    const currentPageTitle = getCurrentPageTitle();
+    const currentPageTitle = document.title;
     const casualInfo = (await getVideoCasualInfo(videoID, brandingLocation))
         .filter((v) => !v.title || v.title.toLowerCase() === currentPageTitle?.toLowerCase());
     for (const category of casualInfo) {
