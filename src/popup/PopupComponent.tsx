@@ -159,13 +159,7 @@ export const PopupComponent = () => {
                         titleFormatting={titleFormatting}
                     />
                 </a>
-                <a href="https://discord.gg/SponsorBlock" target="_blank" rel="noreferrer">
-                    <FormattedText
-                        text="Discord"
-                        titleFormatting={titleFormatting}
-                    />
-                </a>
-                <a href="https://matrix.to/#/#edittogether:matrix.org" target="_blank" rel="noreferrer">
+                <a href="https://matrix.to/#/#edittogether:matrix.org?via=matrix.org" target="_blank" rel="noreferrer">
                     <FormattedText
                         text="Matrix"
                         titleFormatting={titleFormatting}
