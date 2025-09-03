@@ -521,6 +521,7 @@ export function getThumbnailImageSelector(brandingLocation: BrandingLocation): s
         case BrandingLocation.Endcards:
             return ".ytp-ce-covering-image";
         case BrandingLocation.Autoplay:
+        case BrandingLocation.EndAutonav:
             return "div.ytp-autonav-endscreen-upnext-thumbnail";
         case BrandingLocation.EndRecommendations:
             return "div.ytp-videowall-still-image";
