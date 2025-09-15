@@ -2463,66 +2463,63 @@ async function sendSubmitMessage(): Promise<boolean> {
         }
     }
 
-    const response = await asyncRequestToServer("POST", "/api/skipSegments", {
-        videoID: getVideoID(),
-        userID: Config.config.userID,
-        segments: sponsorTimesSubmitting,
-        videoDuration: getVideoDuration(),
-        userAgent: extensionUserAgent(),
-    });
+    try {
+        const response = await asyncRequestToServer("POST", "/api/skipSegments", {
+            videoID: getVideoID(),
+            userID: Config.config.userID,
+            segments: sponsorTimesSubmitting,
+            videoDuration: getVideoDuration(),
+            userAgent: extensionUserAgent(),
+        });
 
-    if (response.status === 200) {
-        stopAnimation();
+        if (response.status === 200) {
+            // Remove segments from storage since they've already been submitted
+            delete Config.local.unsubmittedSegments[getVideoID()];
+            Config.forceLocalUpdate("unsubmittedSegments");
 
-        // Remove segments from storage since they've already been submitted
-        delete Config.local.unsubmittedSegments[getVideoID()];
-        Config.forceLocalUpdate("unsubmittedSegments");
-
-        const newSegments = sponsorTimesSubmitting;
-        try {
-            const receivedNewSegments = JSON.parse(response.responseText);
-            if (receivedNewSegments?.length === newSegments.length) {
-                for (let i = 0; i < receivedNewSegments.length; i++) {
-                    newSegments[i].UUID = receivedNewSegments[i].UUID;
-                    newSegments[i].source = SponsorSourceType.Server;
+            const newSegments = sponsorTimesSubmitting;
+            try {
+                const receivedNewSegments = JSON.parse(response.responseText);
+                if (receivedNewSegments?.length === newSegments.length) {
+                    for (let i = 0; i < receivedNewSegments.length; i++) {
+                        newSegments[i].UUID = receivedNewSegments[i].UUID;
+                        newSegments[i].source = SponsorSourceType.Server;
+                    }
                 }
+            } catch(e) {} // eslint-disable-line no-empty
+
+            // Add submissions to current sponsors list
+            sponsorTimes = (sponsorTimes || []).concat(newSegments).sort((a, b) => a.segment[0] - b.segment[0]);
+
+            // Increase contribution count
+            Config.config.sponsorTimesContributed = Config.config.sponsorTimesContributed + sponsorTimesSubmitting.length;
+
+            // New count just used to see if a warning "Read The Guidelines!!" message needs to be shown
+            // One per time submitting
+            Config.config.submissionCountSinceCategories = Config.config.submissionCountSinceCategories + 1;
+
+            // Empty the submitting times
+            sponsorTimesSubmitting = [];
+
+            updatePreviewBar();
+
+            const fullVideoSegment = sponsorTimes.filter((time) => time.actionType === ActionType.Full)[0];
+            if (fullVideoSegment) {
+                categoryPill?.setSegment(fullVideoSegment);
             }
-        } catch(e) {} // eslint-disable-line no-empty
 
-        // Add submissions to current sponsors list
-        sponsorTimes = (sponsorTimes || []).concat(newSegments).sort((a, b) => a.segment[0] - b.segment[0]);
-
-        // Increase contribution count
-        Config.config.sponsorTimesContributed = Config.config.sponsorTimesContributed + sponsorTimesSubmitting.length;
-
-        // New count just used to see if a warning "Read The Guidelines!!" message needs to be shown
-        // One per time submitting
-        Config.config.submissionCountSinceCategories = Config.config.submissionCountSinceCategories + 1;
-
-        // Empty the submitting times
-        sponsorTimesSubmitting = [];
-
-        updatePreviewBar();
-
-        const fullVideoSegment = sponsorTimes.filter((time) => time.actionType === ActionType.Full)[0];
-        if (fullVideoSegment) {
-            categoryPill?.setSegment(fullVideoSegment);
-        }
-
-        return true;
-    } else {
-        // Show that the upload failed
-        playerButtons.submit.button.style.animation = "unset";
-        playerButtons.submit.image.src = chrome.runtime.getURL("icons/PlayerUploadFailedIconEditTogether.svg");
-
-        if (response.status === 403 && response.responseText.startsWith("Submission rejected due to a tip from a moderator.")) {
-            openWarningDialog(skipNoticeContentContainer);
+            return true;
         } else {
             alert(getErrorMessage(response.status, response.responseText));
+            return false;
         }
+    } catch (e) {
+        console.error(e);
+        alert(getErrorMessage(-1, ""));
+        return false;
+    } finally {
+        stopAnimation();
     }
-
-    return false;
 }
 
 //get the message that visually displays the video times
