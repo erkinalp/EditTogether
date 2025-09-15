@@ -59,11 +59,15 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
             });
 
             if (result.ok) {
-                const userInfo = JSON.parse(result.responseText);
-                username = userInfo.userName;
+                try {
+                    const userInfo = JSON.parse(result.responseText);
+                    username = userInfo.userName;
 
-                if (userInfo.editTogetherWarningReason) {
-                    createWarningTooltip(userInfo.editTogetherWarningReason, displayName);
+                    if (userInfo.editTogetherWarningReason) {
+                        createWarningTooltip(userInfo.editTogetherWarningReason, displayName);
+                    }
+                } catch (e) {
+                    console.error(e);
                 }
             }
 

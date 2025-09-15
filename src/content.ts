@@ -52,6 +52,7 @@ import { isMobileControlsOpen } from "./utils/mobileUtils";
 import { defaultPreviewTime } from "./utils/constants";
 import { onVideoPage } from "../maze-utils/src/pageInfo";
 import { getSegmentsForVideo } from "./utils/segmentData";
+import { hideTooShortSegments, getSkipProfileNum } from "./utils/skipProfiles";
 import { getCategoryDefaultSelection, getCategorySelection } from "./utils/skipRule";
 
 cleanPage();
@@ -1206,15 +1207,8 @@ async function sponsorsLookup(keepOldSubmissions = true, ignoreCache = false) {
             sponsorTimes = receivedSegments;
             existingChaptersImported = false;
 
-            // Hide all submissions smaller than the minimum duration
-            if (Config.config.minDuration !== 0) {
-                for (const segment of sponsorTimes) {
-                    const duration = segment.segment[1] - segment.segment[0];
-                    if (duration > 0 && duration < Config.config.minDuration) {
-                        segment.hidden = SponsorHideType.MinimumDuration;
-                    }
-                }
-            }
+            // Hide all submissions smaller than the minimum duration (profile-aware)
+            hideTooShortSegments(sponsorTimes)
 
             if (keepOldSubmissions) {
                 for (const segment of oldSegments) {
@@ -2450,11 +2444,12 @@ async function sendSubmitMessage(): Promise<boolean> {
     Config.local.unsubmittedSegments[getVideoID()] = sponsorTimesSubmitting;
     Config.forceLocalUpdate("unsubmittedSegments");
 
-    // Check to see if any of the submissions are below the minimum duration set
-    if (Config.config.minDuration > 0) {
+    // Check to see if any of the submissions are below the minimum duration set (profile-aware)
+    const __minDuration = getSkipProfileNum("minDuration");
+    if (__minDuration > 0) {
         for (let i = 0; i < sponsorTimesSubmitting.length; i++) {
             const duration = sponsorTimesSubmitting[i].segment[1] - sponsorTimesSubmitting[i].segment[0];
-            if (duration > 0 && duration < Config.config.minDuration) {
+            if (duration > 0 && duration < __minDuration) {
                 const confirmShort = chrome.i18n.getMessage("shortCheck") + "\n\n" +
                     getSegmentsMessage(sponsorTimesSubmitting);
 

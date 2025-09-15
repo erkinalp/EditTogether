@@ -141,6 +141,10 @@ interface SBStorage {
     unsubmittedSegments: Record<string, SponsorTime[]>;
 
     skipRules: AdvancedSkipRuleSet[];
+
+    skipProfileTemp: { configID: string; time: number } | null;
+    channelSkipProfileIDs: Record<string, string>;
+    skipProfiles: Record<string, Record<string, unknown>>;
 }
 
 class ConfigClass extends ProtoConfig<SBConfig, SBStorage> {
@@ -488,7 +492,10 @@ const localDefaults = {
     alreadyInstalled: false,
 
     unsubmittedSegments: {},
-    skipRules: []
+    skipRules: [],
+    skipProfileTemp: null,
+    channelSkipProfileIDs: {},
+    skipProfiles: {}
 };
 
 const Config = new ConfigClass(syncDefaults, localDefaults, migrateOldSyncFormats);
