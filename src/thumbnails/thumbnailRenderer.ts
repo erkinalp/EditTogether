@@ -521,6 +521,7 @@ export function getThumbnailImageSelector(brandingLocation: BrandingLocation): s
         case BrandingLocation.Endcards:
             return ".ytp-ce-covering-image";
         case BrandingLocation.Autoplay:
+        case BrandingLocation.EndAutonav:
             return "div.ytp-autonav-endscreen-upnext-thumbnail";
         case BrandingLocation.EndRecommendations:
             return "div.ytp-videowall-still-image";
@@ -551,6 +552,7 @@ function getThumbnailBox(image: HTMLElement, brandingLocation: BrandingLocation)
                 return image;
             }
         case BrandingLocation.Autoplay:
+        case BrandingLocation.EndAutonav:
         case BrandingLocation.UpNextPreview:
             return image;
         default:
