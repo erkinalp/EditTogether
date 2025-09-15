@@ -35,8 +35,6 @@ interface SBConfig {
     hideDeleteButtonPlayerControls: boolean;
     hideUploadButtonPlayerControls: boolean;
     hideSkipButtonPlayerControls: boolean;
-    hideDiscordLaunches: number;
-    hideDiscordLink: boolean;
     invidiousInstances: string[];
     supportInvidious: boolean;
     serverAddress: string;
@@ -305,8 +303,6 @@ const syncDefaults = {
     hideDeleteButtonPlayerControls: false,
     hideUploadButtonPlayerControls: false,
     hideSkipButtonPlayerControls: false,
-    hideDiscordLaunches: 0,
-    hideDiscordLink: false,
     invidiousInstances: [],
     supportInvidious: false,
     serverAddress: CompileConfig.serverAddress,
