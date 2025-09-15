@@ -8,7 +8,7 @@ import { downvoteButtonColor, SkipNoticeAction } from "../utils/noticeUtils";
 import { VoteResponse } from "../messageTypes";
 import { AnimationUtils } from "../../maze-utils/src/animationUtils";
 import { Tooltip } from "../render/Tooltip";
-import { getErrorMessage } from "../../maze-utils/src/formating";
+import { getLongErrorMessage } from "../../maze-utils/src/formating";
 
 export interface CategoryPillProps {
     vote: (type: number, UUID: SegmentUUID, category?: Category) => Promise<VoteResponse>;
@@ -135,7 +135,7 @@ class CategoryPillComponent extends React.Component<CategoryPillProps, CategoryP
 
                 this.closeTooltip();
             } else if (response.statusCode !== 403) {
-                alert(getErrorMessage(response.statusCode, response.responseText));
+                alert(getLongErrorMessage(response.statusCode, response.responseText));
             }
         }
     }

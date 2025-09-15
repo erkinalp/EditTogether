@@ -3,7 +3,7 @@ import { ActionType, SegmentUUID, SponsorHideType, SponsorTime, VideoID } from "
 import Config from "../config";
 import { waitFor } from "../../maze-utils/src";
 import { shortCategoryName } from "../utils/categoryUtils";
-import { getErrorMessage, getFormattedTime } from "../../maze-utils/src/formating";
+import { getLongErrorMessage, getFormattedTime } from "../../maze-utils/src/formating";
 import { AnimationUtils } from "../../maze-utils/src/animationUtils";
 import { asyncRequestToServer } from "../utils/requests";
 import { Message, MessageResponse, VoteResponse } from "../messageTypes";
@@ -307,7 +307,7 @@ async function vote(props: {
             // Success (treat rate limits as a success)
             props.setVoteMessage(chrome.i18n.getMessage("voted"));
         } else if (response.successType == -1) {
-            props.setVoteMessage(getErrorMessage(response.statusCode, response.responseText));
+            props.setVoteMessage(getLongErrorMessage(response.statusCode, response.responseText));
         }
         setTimeout(() => props.setVoteMessage(null), 1500);
     }

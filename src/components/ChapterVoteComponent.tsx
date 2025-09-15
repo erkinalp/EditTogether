@@ -8,7 +8,7 @@ import { downvoteButtonColor, SkipNoticeAction } from "../utils/noticeUtils";
 import { VoteResponse } from "../messageTypes";
 import { AnimationUtils } from "../../maze-utils/src/animationUtils";
 import { Tooltip } from "../render/Tooltip";
-import { getErrorMessage } from "../../maze-utils/src/formating";
+import { getLongErrorMessage } from "../../maze-utils/src/formating";
 
 export interface ChapterVoteProps {
     vote: (type: number, UUID: SegmentUUID, category?: Category) => Promise<VoteResponse>;
@@ -124,7 +124,7 @@ class ChapterVoteComponent extends React.Component<ChapterVoteProps, ChapterVote
                     show: type === 1
                 });
             } else if (response.statusCode !== 403) {
-                alert(getErrorMessage(response.statusCode, response.responseText));
+                alert(getLongErrorMessage(response.statusCode, response.responseText));
             }
         }
     }

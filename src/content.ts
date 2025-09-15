@@ -34,7 +34,7 @@ import { importTimes } from "./utils/exporter";
 import { ChapterVote } from "./render/ChapterVote";
 import { openWarningDialog } from "./utils/warnings";
 import { extensionUserAgent, isFirefoxOrSafari, waitFor } from "../maze-utils/src";
-import { getErrorMessage, getFormattedTime } from "../maze-utils/src/formating";
+import { getLongErrorMessage, getFormattedTime } from "../maze-utils/src/formating";
 import { getChannelIDInfo, getVideo, getIsAdPlaying, getIsLivePremiere, setIsAdPlaying, checkVideoIDChange, getVideoID, getYouTubeVideoID, setupVideoModule, checkIfNewVideoID, isOnInvidious, isOnMobileYouTube, isOnYouTubeMusic, isOnYTTV, getLastNonInlineVideoID, triggerVideoIDChange, triggerVideoElementChange, getIsInline, getCurrentTime, setCurrentTime, getVideoDuration, verifyCurrentTime, waitForVideo } from "../maze-utils/src/video";
 import { Keybind, StorageChangesObject, isSafari, keybindEquals, keybindToString } from "../maze-utils/src/config";
 import { findValidElement } from "../maze-utils/src/dom"
@@ -2294,7 +2294,7 @@ async function vote(type: number, UUID: SegmentUUID, category?: Category, skipNo
                 if (response.statusCode === 403 && response.responseText.startsWith("Vote rejected due to a tip from a moderator.")) {
                     openWarningDialog(skipNoticeContentContainer);
                 } else {
-                    skipNotice.setNoticeInfoMessage.bind(skipNotice)(getErrorMessage(response.statusCode, response.responseText))
+                    skipNotice.setNoticeInfoMessage.bind(skipNotice)(getLongErrorMessage(response.statusCode, response.responseText))
                 }
 
                 skipNotice.resetVoteButtonInfo.bind(skipNotice)();
@@ -2518,7 +2518,7 @@ async function sendSubmitMessage(): Promise<boolean> {
         if (response.status === 403 && response.responseText.startsWith("Submission rejected due to a tip from a moderator.")) {
             openWarningDialog(skipNoticeContentContainer);
         } else {
-            alert(getErrorMessage(response.status, response.responseText));
+            alert(getLongErrorMessage(response.status, response.responseText));
         }
     }
 

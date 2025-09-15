@@ -2,7 +2,7 @@ import * as React from "react";
 import Config, { TitleFormatting } from "../config/config";
 import { sendRequestToServer } from "../utils/requests";
 import { getHash } from "../../maze-utils/src/hash";
-import { getErrorMessage } from "../../maze-utils/src/formating";
+import { getLongErrorMessage } from "../../maze-utils/src/formating";
 import PencilIcon from "../svg-icons/pencilIcon";
 import ClipboardIcon from "../svg-icons/clipboardIcon";
 import CheckIcon from "../svg-icons/checkIcon";
@@ -99,7 +99,7 @@ export const YourWorkComponent = ({ titleFormatting }: YourWorkComponentProps) =
                                             setUsername(newUsername);
                                             setIsSettingUsername(!isSettingUsername);
                                         } else {
-                                            setUsernameSubmissionStatus(getErrorMessage(result.status, result.responseText));
+                                            setUsernameSubmissionStatus(getLongErrorMessage(result.status, result.responseText));
                                         }
                                     }).catch((e) => {
                                         setUsernameSubmissionStatus(`${chrome.i18n.getMessage("Error")}: ${e}`);
