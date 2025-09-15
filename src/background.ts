@@ -3,9 +3,10 @@ import * as CompileConfig from "../config.json";
 import Config from "./config";
 import { Registration } from "./types";
 import "content-scripts-register-polyfill";
-import { sendRealRequestToCustomServer, setupBackgroundRequestProxy } from "../maze-utils/src/background-request-proxy";
+import { sendRealRequestToCustomServer, setupBackgroundRequestProxy, serializeOrStringify } from "../maze-utils/src/background-request-proxy";
 import { setupTabUpdates } from "../maze-utils/src/tab-updates";
 import { generateUserID } from "../maze-utils/src/setup";
+import { formatJSErrorMessage, getLongErrorMessage } from "../maze-utils/src/formating";
 
 import Utils from "./utils";
 
@@ -239,11 +240,11 @@ async function submitVote(type: number, UUID: string, category: string, videoID:
             };
         }
     } catch (e) {
-        console.error(e);
+        console.error("Error while voting:", serializeOrStringify(e));
         return {
             successType: -1,
             statusCode: -1,
-            responseText: ""
+            responseText: formatJSErrorMessage(e)
         };
     }
 }
