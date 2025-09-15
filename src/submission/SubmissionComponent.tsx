@@ -399,7 +399,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
                         <a className="cbNoticeButton"
                             href={`https://chat.sponsor.ajay.app/#${objectToURI("", {
                                 displayName: getChatDisplayName(chatDisplayName),
-                                customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://discord.gg/SponsorBlock\nhttps://matrix.to/#/#edittogether:matrix.org`,
+                                customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://matrix.to/#/#edittogether:matrix.org?via=matrix.org`,
                                 bigDescription: true
                             }, false)}`}
                             target="_blank"
@@ -583,7 +583,7 @@ function createWarningTooltip(reason: string, name: ChatDisplayName) {
                 name: chrome.i18n.getMessage("questionButton"),
                 listener: () => window.open(`https://chat.sponsor.ajay.app/#${objectToURI("", {
                     displayName: getChatDisplayName(name),
-                    customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://discord.gg/SponsorBlock\nhttps://matrix.to/#/#sponsor:ajay.app?via=matrix.org`,
+                    customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://matrix.to/#/#edittogether:matrix.org?via=matrix.org`,
                     bigDescription: true
                 }, false)}`)
             }],
