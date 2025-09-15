@@ -306,7 +306,7 @@ const syncDefaults = {
     hideUploadButtonPlayerControls: false,
     hideSkipButtonPlayerControls: false,
     hideDiscordLaunches: 0,
-    hideDiscordLink: false,
+    hideDiscordLink: true,
     invidiousInstances: [],
     supportInvidious: false,
     serverAddress: CompileConfig.serverAddress,
