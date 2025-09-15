@@ -6,7 +6,7 @@ import "content-scripts-register-polyfill";
 import { sendRealRequestToCustomServer, setupBackgroundRequestProxy, serializeOrStringify } from "../maze-utils/src/background-request-proxy";
 import { setupTabUpdates } from "../maze-utils/src/tab-updates";
 import { generateUserID } from "../maze-utils/src/setup";
-import { formatJSErrorMessage, getLongErrorMessage } from "../maze-utils/src/formating";
+import { formatJSErrorMessage } from "../maze-utils/src/formating";
 
 import Utils from "./utils";
 
