@@ -24,21 +24,19 @@ if (LOAD_CLD) {
  */
 
 export async function formatTitle(title: string, isCustom: boolean, videoID: VideoID | null): Promise<string> {
-    const shouldOnlyFormatCustom = !Config.config!.formatOriginalTitles && Config.config!.formatCustomTitles;
-    return formatTitleInternal(title, isCustom, await getTitleFormatting(videoID), await shouldCleanEmojis(videoID), shouldOnlyFormatCustom);
+    return formatTitleInternal(title, isCustom, await getTitleFormatting(videoID), await shouldCleanEmojis(videoID), Config.config!.formatCustomTitles, Config.config!.formatOriginalTitles);
 }
 
 export async function formatTitleDefaultSettings(title: string, isCustom: boolean): Promise<string> {
-    const shouldOnlyFormatCustom = !Config.config!.formatOriginalTitles && Config.config!.formatCustomTitles;
-    return await formatTitleInternal(title, isCustom, Config.config!.titleFormatting, Config.config!.shouldCleanEmojis, shouldOnlyFormatCustom);
+    return await formatTitleInternal(title, isCustom, Config.config!.titleFormatting, Config.config!.shouldCleanEmojis, Config.config!.formatCustomTitles, Config.config!.formatOriginalTitles);
 }
 
-export async function formatTitleInternal(title: string, isCustom: boolean, titleFormatting: TitleFormatting, shouldCleanEmojis: boolean, onlyFormatCustomTitles = false): Promise<string> {
+export async function formatTitleInternal(title: string, isCustom: boolean, titleFormatting: TitleFormatting, shouldCleanEmojis: boolean, formatCustomTitles = true, formatOriginalTitles = true): Promise<string> {
     if (shouldCleanEmojis) {
         title = cleanFancyText(cleanEmojis(title));
     }
 
-    if (onlyFormatCustomTitles && !isCustom) {
+    if ((!formatCustomTitles && isCustom) || (!formatOriginalTitles && !isCustom)) {
         titleFormatting = TitleFormatting.Disable;
     }
 
@@ -645,7 +643,7 @@ export function cleanFancyText(title: string): string {
         // Allow emoji variation selectors on either side of the replacement character
         // Supports emojis such as 🅱️
         title = title.replace(new RegExp(`[\u{fe00}-\u{fe0f}\u{e0100}-\u{e01ef}]?${replacement[0]}[\u{fe00}-\u{fe0f}\u{e0100}-\u{e01ef}]?`
-            , "ug"), replacement[1].toUpperCase());
+            , "ug"), replacement[1]);
     }
 
     return title.trim();

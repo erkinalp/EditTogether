@@ -179,7 +179,7 @@ function showAutoWarningIfRequiredInternal(title: string, element: HTMLElement):
 
                     window.open(`https://chat.sponsor.ajay.app/#${objectToURI("", {
                         displayName: getChatDisplayName(name),
-                        customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://discord.gg/SponsorBlock\nhttps://matrix.to/#/#edittogether:matrix.org?via=matrix.org`,
+                        customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://matrix.to/#/#edittogether:matrix.org?via=matrix.org`,
                         bigDescription: true
                     }, false)}`);
                 }

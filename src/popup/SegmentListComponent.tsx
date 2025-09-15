@@ -3,7 +3,8 @@ import { ActionType, SegmentUUID, SponsorHideType, SponsorTime, VideoID } from "
 import Config from "../config";
 import { waitFor } from "../../maze-utils/src";
 import { shortCategoryName } from "../utils/categoryUtils";
-import { getErrorMessage, getFormattedTime } from "../../maze-utils/src/formating";
+import { getFormattedTime } from "../../maze-utils/src/formating";
+import { formatJSErrorMessage, getLongErrorMessage } from "../utils/errorFormat";
 import { AnimationUtils } from "../../maze-utils/src/animationUtils";
 import { asyncRequestToServer } from "../utils/requests";
 import { Message, MessageResponse, VoteResponse } from "../messageTypes";
@@ -303,11 +304,13 @@ async function vote(props: {
 
     if (response != undefined) {
         // See if it was a success or failure
-        if (response.successType == 1 || (response.successType == -1 && response.statusCode == 429)) {
+        if ("error" in response) {
+            props.setVoteMessage(formatJSErrorMessage(response.error));
+        } else if (response.ok || response.status === 429) {
             // Success (treat rate limits as a success)
             props.setVoteMessage(chrome.i18n.getMessage("voted"));
-        } else if (response.successType == -1) {
-            props.setVoteMessage(getErrorMessage(response.statusCode, response.responseText));
+        } else {
+            props.setVoteMessage(getLongErrorMessage(response.status, response.responseText));
         }
         setTimeout(() => props.setVoteMessage(null), 1500);
     }

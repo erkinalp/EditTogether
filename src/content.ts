@@ -35,6 +35,7 @@ import { ChapterVote } from "./render/ChapterVote";
 import { openWarningDialog } from "./utils/warnings";
 import { extensionUserAgent, isFirefoxOrSafari, waitFor } from "../maze-utils/src";
 import { getErrorMessage, getFormattedTime } from "../maze-utils/src/formating";
+import { formatJSErrorMessage, getLongErrorMessage } from "./utils/errorFormat";
 import { getChannelIDInfo, getVideo, getIsAdPlaying, getIsLivePremiere, setIsAdPlaying, checkVideoIDChange, getVideoID, getYouTubeVideoID, setupVideoModule, checkIfNewVideoID, isOnInvidious, isOnMobileYouTube, isOnYouTubeMusic, isOnYTTV, getLastNonInlineVideoID, triggerVideoIDChange, triggerVideoElementChange, getIsInline, getCurrentTime, setCurrentTime, getVideoDuration, verifyCurrentTime, waitForVideo } from "../maze-utils/src/video";
 import { Keybind, StorageChangesObject, isSafari, keybindEquals, keybindToString } from "../maze-utils/src/config";
 import { findValidElement } from "../maze-utils/src/dom"
@@ -1720,7 +1721,13 @@ function sendTelemetryAndCount(skippingSegments: SponsorTime[], secondsSkipped: 
                 counted = true;
             }
 
-            if (fullSkip) asyncRequestToServer("POST", "/api/viewedVideoSponsorTime?UUID=" + segment.UUID + "&videoID=" + getVideoID());
+            if (fullSkip) asyncRequestToServer("POST", "/api/viewedVideoSponsorTime?UUID=" + segment.UUID + "&videoID=" + getVideoID())
+                .then(r => {
+                    // eslint-disable-next-line @typescript-eslint/no-var-requires
+                    const { logRequest } = require("./utils/requestLogging");
+                    if (!r.ok) logRequest(r, "SB", "segment skip log");
+                })
+                .catch(e => console.warn("[SB] Caught error while attempting to log segment skip", e));
         }
     }
 }
@@ -2287,14 +2294,17 @@ async function vote(type: number, UUID: SegmentUUID, category?: Category, skipNo
     if (response != undefined) {
         //see if it was a success or failure
         if (skipNotice != null) {
-            if (response.successType == 1 || (response.successType == -1 && response.statusCode == 429)) {
+            if ("error" in response) {
+                skipNotice.setNoticeInfoMessage.bind(skipNotice)(formatJSErrorMessage(response.error as unknown as Error));
+                skipNotice.resetVoteButtonInfo.bind(skipNotice)();
+            } else if (response.ok || response.status === 429) {
                 //success (treat rate limits as a success)
                 skipNotice.afterVote.bind(skipNotice)(utils.getSponsorTimeFromUUID(sponsorTimes, UUID), type, category);
-            } else if (response.successType == -1) {
-                if (response.statusCode === 403 && response.responseText.startsWith("Vote rejected due to a tip from a moderator.")) {
+            } else {
+                if (response.status === 403 && response.responseText.startsWith("Vote rejected due to a tip from a moderator.")) {
                     openWarningDialog(skipNoticeContentContainer);
                 } else {
-                    skipNotice.setNoticeInfoMessage.bind(skipNotice)(getErrorMessage(response.statusCode, response.responseText))
+                    skipNotice.setNoticeInfoMessage.bind(skipNotice)(getLongErrorMessage(response.status, response.responseText));
                 }
 
                 skipNotice.resetVoteButtonInfo.bind(skipNotice)();
@@ -2334,8 +2344,12 @@ async function voteAsync(type: number, UUID: SegmentUUID, category?: Category): 
             category: category,
             videoID: getVideoID()
         }, (response) => {
-            if (response.successType === 1) {
-                // Change the sponsor locally
+            if (!response || "error" in response) {
+                resolve(response);
+                return;
+            }
+
+            if (response.ok || response.status === 429) {
                 const segment = utils.getSponsorTimeFromUUID(sponsorTimes, UUID);
                 if (segment) {
                     if (type === 0) {
