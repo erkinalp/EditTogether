@@ -8,6 +8,12 @@ enum CheckType {
     AddedNodes
 }
 
+let endscreenAutonavObserver: MutationObserver | null = null;
+let endscreenAutonavObserverElement: HTMLElement | null = null;
+
+let endscreenAutonavSuggestionObserver: MutationObserver | null = null;
+let endscreenAutonavSuggestionObserverElement: HTMLElement | null = null;
+
 let autoplayObserver: MutationObserver | null = null;
 let autoplayObserverElement: HTMLElement | null = null;
 
@@ -35,6 +41,7 @@ export async function replaceVideoPlayerSuggestionsBranding(): Promise<void> {
         const endcardSelector = ".ytp-ce-element";
         const autoplaySelector = ".ytp-autonav-endscreen-countdown-overlay";
         const endRecommendationsSelector = ".html5-endscreen";
+        const autonavSelector = ".ytp-autonav-endscreen-upnext-container";
 
         // Setup initial listeners
         {
@@ -74,6 +81,9 @@ export async function replaceVideoPlayerSuggestionsBranding(): Promise<void> {
                                 setupAutoplayObserver(node);
                             } else if (node.matches(endRecommendationsSelector)) {
                                 setupRecommendationsObserver(node);
+                            }  else if (node.matches(autonavSelector)) {
+                                setupAutonavSuggestionsObserver(node);
+                                setupAutonavObserver(node);
                             }
                         }
                     }
@@ -177,6 +187,38 @@ export function setupAutoplayObserver(element: HTMLElement): void {
     }
 }
 
+export function setupAutonavObserver(element: HTMLElement): void {
+    const refNode = element.querySelector(".ytp-autonav-endscreen-upnext-container") as HTMLElement;
+    if (!endscreenAutonavObserver || endscreenAutonavObserverElement !== element && refNode) {
+        if (endscreenAutonavObserver) endscreenAutonavObserver.disconnect();
+
+        endscreenAutonavObserverElement = element as HTMLElement;
+        endscreenAutonavObserver = new MutationObserver((mutations) => observe(mutations,
+            ".ytp-autonav-endscreen-upnext-title:not(.cbCustomTitle)", BrandingLocation.EndAutonav,
+            CheckType.Target, ".ytp-autonav-endscreen-link-container"));
+
+        endscreenAutonavObserver.observe(refNode, {
+            childList: true,
+            subtree: true 
+        });
+    }
+}
+
+export function setupAutonavSuggestionsObserver(element: HTMLElement): void {
+    const refNode = element.querySelector(".ytp-suggestions-container") as HTMLElement;
+
+    if (!endscreenAutonavSuggestionObserver || endscreenAutonavSuggestionObserverElement !== element && refNode) {
+        if (endscreenAutonavSuggestionObserver) endscreenAutonavSuggestionObserver.disconnect();
+
+        endscreenAutonavSuggestionObserverElement = element as HTMLElement;
+        endscreenAutonavSuggestionObserver = new MutationObserver((mutations) => observe(mutations,
+            ".ytp-autonav-suggestion-card", BrandingLocation.EndAutonav, CheckType.AddedNodes));
+
+        endscreenAutonavSuggestionObserver.observe(refNode, {
+            childList: true
+        });
+    }
+}
 export function setupRecommendationsObserver(element: HTMLElement): void {
     const refNode = element.querySelector(".ytp-endscreen-content") as HTMLElement;
 
@@ -223,7 +265,8 @@ function setupVideoBrandReplacement(element: HTMLElement, brandingLocation: Bran
     replaceVideoCardBranding(element, brandingLocation).catch(logError);
 
     if (brandingLocation === BrandingLocation.EndRecommendations
-            || brandingLocation === BrandingLocation.EmbedSuggestions) {
+            || brandingLocation === BrandingLocation.EmbedSuggestions
+            || brandingLocation === BrandingLocation.EndAutonav) {
         if (element && !handledElements.has(element)) {
             handledElements.add(element);
             const observer = new MutationObserver((mutations) => {
@@ -309,5 +352,7 @@ export function setupWatchPageBrandingCleanup() {
         mobileControlsObserver?.disconnect?.();
         mobileAutoplayObserver?.disconnect?.();
         mutationObserver?.disconnect?.();
+        endscreenAutonavObserver?.disconnect?.();
+        endscreenAutonavSuggestionObserver?.disconnect?.();
     });
 }
