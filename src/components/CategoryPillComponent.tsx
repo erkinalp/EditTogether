@@ -8,8 +8,8 @@ import { downvoteButtonColor, SkipNoticeAction } from "../utils/noticeUtils";
 import { VoteResponse } from "../messageTypes";
 import { AnimationUtils } from "../../maze-utils/src/animationUtils";
 import { Tooltip } from "../render/Tooltip";
-import { getErrorMessage } from "../../maze-utils/src/formating";
-
+import { formatJSErrorMessage, getLongErrorMessage } from "../utils/errorFormat";
+import { logRequest } from "../utils/requestLogging";
 export interface CategoryPillProps {
     vote: (type: number, UUID: SegmentUUID, category?: Category) => Promise<VoteResponse>;
     showTextByDefault: boolean;
@@ -127,15 +127,19 @@ class CategoryPillComponent extends React.Component<CategoryPillProps, CategoryP
             const response = await this.props.vote(type, this.state.segment.UUID);
             await stopAnimation();
 
-            if (response.successType == 1 || (response.successType == -1 && response.statusCode == 429)) {
+            if ("error" in response) {
+                console.error("[SB] Caught error while attempting to vote on a FV label", response.error);
+                alert(formatJSErrorMessage(response.error));
+            } else if (response.ok || response.status === 429) {
                 this.setState({
                     open: false,
                     show: type === 1
                 });
 
                 this.closeTooltip();
-            } else if (response.statusCode !== 403) {
-                alert(getErrorMessage(response.statusCode, response.responseText));
+            } else if (response.status !== 403) {
+                logRequest({headers: null, ...response}, "SB", "vote on FV label");
+                alert(getLongErrorMessage(response.status, response.responseText));
             }
         }
     }
