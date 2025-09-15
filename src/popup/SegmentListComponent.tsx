@@ -195,21 +195,23 @@ function SegmentListItem({ segment, videoID, currentTime, isVip, startingLooped,
                     src={chrome.runtime.getURL("icons/clipboard.svg")}
                     onClick={async (e) => {
                         const stopAnimation = AnimationUtils.applyLoadingAnimation(e.currentTarget, 0.3);
-
-                        if (segment.UUID.length > 60) {
-                            copyToClipboardPopup(segment.UUID, sendMessage);
-                        } else {
-                            const segmentIDData = await asyncRequestToServer("GET", "/api/segmentID", {
-                                UUID: segment.UUID,
-                                videoID: videoID
-                            });
-                
-                            if (segmentIDData.ok && segmentIDData.responseText) {
-                                copyToClipboardPopup(segmentIDData.responseText, sendMessage);
+                        try {
+                            if (segment.UUID.length > 60) {
+                                copyToClipboardPopup(segment.UUID, sendMessage);
+                            } else {
+                                const segmentIDData = await asyncRequestToServer("GET", "/api/segmentID", {
+                                    UUID: segment.UUID,
+                                    videoID: videoID
+                                });
+                                if (segmentIDData.ok && segmentIDData.responseText) {
+                                    copyToClipboardPopup(segmentIDData.responseText, sendMessage);
+                                }
                             }
+                        } catch (err) {
+                            console.error(err);
+                        } finally {
+                            stopAnimation();
                         }
-
-                        stopAnimation();
                     }}/>
                 {
                     segment.actionType === ActionType.Chapter &&
@@ -302,14 +304,17 @@ async function vote(props: {
     }) as VoteResponse;
 
     if (response != undefined) {
-        // See if it was a success or failure
-        if (response.successType == 1 || (response.successType == -1 && response.statusCode == 429)) {
-            // Success (treat rate limits as a success)
+        let messageDuration = 1500;
+        if (response.successType === 1 || (response.successType === -1 && response.statusCode === 429)) {
             props.setVoteMessage(chrome.i18n.getMessage("voted"));
-        } else if (response.successType == -1) {
+        } else if (response.successType === -1) {
             props.setVoteMessage(getErrorMessage(response.statusCode, response.responseText));
+            messageDuration = 10000;
+        } else {
+            props.setVoteMessage(getErrorMessage(response.statusCode, response.responseText));
+            messageDuration = 3000;
         }
-        setTimeout(() => props.setVoteMessage(null), 1500);
+        setTimeout(() => props.setVoteMessage(null), messageDuration);
     }
 }
 
