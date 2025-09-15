@@ -587,9 +587,13 @@ function activatePrivateTextChange(element: HTMLElement) {
                     publicUserID: getHash(Config.config[option]),
                     values: ["warnings", "banned"]
                 }).then((result) => {
-                    const userInfo = JSON.parse(result.responseText);
-                    if (userInfo.warnings > 0 || userInfo.banned) {
-                        setButton.classList.add("hidden");
+                    try {
+                        const userInfo = JSON.parse(result.responseText);
+                        if (userInfo.warnings > 0 || userInfo.banned) {
+                            setButton.classList.add("hidden");
+                        }
+                    } catch (e) {
+                        console.error(e);
                     }
                 });
             }

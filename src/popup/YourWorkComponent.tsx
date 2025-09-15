@@ -30,13 +30,17 @@ export const YourWorkComponent = ({ titleFormatting }: YourWorkComponentProps) =
             });
 
             if (result.ok) {
-                const userInfo = JSON.parse(result.responseText);
-                setUsername(userInfo.userName);
-                setTitleSubmissionCount(userInfo.titleSubmissionCount);
-                setThumbnailSubmissionCount(userInfo.thumbnailSubmissionCount);
-                setCasualSubmissionCount(userInfo.casualSubmissionCount);
+                try {
+                    const userInfo = JSON.parse(result.responseText);
+                    setUsername(userInfo.userName);
+                    setTitleSubmissionCount(userInfo.titleSubmissionCount);
+                    setThumbnailSubmissionCount(userInfo.thumbnailSubmissionCount);
+                    setCasualSubmissionCount(userInfo.casualSubmissionCount);
 
-                Config.config!.vip = userInfo.vip;
+                    Config.config!.vip = userInfo.vip;
+                } catch (e) {
+                    console.error(e);
+                }
             }
         })();
     }, []);

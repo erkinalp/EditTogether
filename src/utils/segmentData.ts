@@ -59,15 +59,20 @@ async function fetchSegmentsForVideo(videoID: VideoID): Promise<SegmentResponse>
     if (response.ok) {
         const enabledActionTypes = getEnabledActionTypes();
 
-        const receivedSegments: SponsorTime[] = JSON.parse(response.responseText)
-                    ?.filter((video) => video.videoID === videoID)
-                    ?.map((video) => video.segments)?.[0]
-                    ?.filter((segment) => enabledActionTypes.includes(segment.actionType))
-                    ?.map((segment) => ({
-                        ...segment,
-                        source: SponsorSourceType.Server
-                    }))
-                    ?.sort((a, b) => a.segment[0] - b.segment[0]);
+        let receivedSegments: SponsorTime[] = [];
+        try {
+            receivedSegments = JSON.parse(response.responseText)
+                        ?.filter((video) => video.videoID === videoID)
+                        ?.map((video) => video.segments)?.[0]
+                        ?.filter((segment) => enabledActionTypes.includes(segment.actionType))
+                        ?.map((segment) => ({
+                            ...segment,
+                            source: SponsorSourceType.Server
+                        }))
+                        ?.sort((a, b) => a.segment[0] - b.segment[0]) ?? [];
+        } catch (e) {
+            receivedSegments = [];
+        }
 
         if (receivedSegments && receivedSegments.length) {
             const result = {

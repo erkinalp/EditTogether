@@ -170,11 +170,15 @@ function showAutoWarningIfRequiredInternal(title: string, element: HTMLElement):
                     let name: ChatDisplayName | null = null;
 
                     if (result.ok) {
-                        const userInfo = JSON.parse(result.responseText);
-                        name = {
-                            publicUserID,
-                            username: userInfo.userName
-                        };
+                        try {
+                            const userInfo = JSON.parse(result.responseText);
+                            name = {
+                                publicUserID,
+                                username: userInfo.userName
+                            };
+                        } catch (e) {
+                            console.error(e);
+                        }
                     }
 
                     window.open(`https://chat.sponsor.ajay.app/#${objectToURI("", {

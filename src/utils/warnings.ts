@@ -18,9 +18,21 @@ export async function openWarningDialog(contentContainer: ContentContainer): Pro
     });
 
     if (userInfo.ok) {
-        const warningReason = JSON.parse(userInfo.responseText)?.warningReason;
+        let warningReason = "";
+        try {
+            warningReason = JSON.parse(userInfo.responseText)?.warningReason ?? "";
+        } catch (e) {
+            warningReason = "";
+        }
         const userNameData = await asyncRequestToServer("GET", "/api/getUsername?userID=" + Config.config.userID);
-        const userName = userNameData.ok ? JSON.parse(userNameData.responseText).userName : "";
+        let userName = "";
+        if (userNameData.ok) {
+            try {
+                userName = JSON.parse(userNameData.responseText).userName ?? "";
+            } catch (e) {
+                userName = "";
+            }
+        }
         const publicUserID = await getHash(Config.config.userID);
 
         let notice: GenericNotice = null;
