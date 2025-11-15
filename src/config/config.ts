@@ -124,6 +124,9 @@ interface SBConfig {
     ignoreTranslatedTitles: boolean;
     hideDetailsWhileFetching: boolean;
     firstThumbnailSubmitted: boolean;
+    licenseKey: string | null;
+    paymentStatus: string | null;
+    freeActivation: boolean;
 
     firefoxOldContentScriptRegistration: boolean;
     lastIncognitoStatus: boolean;
@@ -144,6 +147,8 @@ class ConfigClass extends ProtoConfig<SBConfig, SBStorage> {
         chrome.storage.sync.set({
             ...this.syncDefaults,
             userID: this.config!.userID,
+            licenseKey: this.config!.licenseKey,
+            freeActivation: this.config!.freeActivation,
 
             firefoxOldContentScriptRegistration: this.config!.firefoxOldContentScriptRegistration
         }).catch(logError);
@@ -220,6 +225,9 @@ const syncDefaults = {
     ignoreTranslatedTitles: false,
     hideDetailsWhileFetching: true,
     firstThumbnailSubmitted: false,
+    licenseKey: null,
+    paymentStatus: null,
+    freeActivation: true,
 
     firefoxOldContentScriptRegistration: false,
     lastIncognitoStatus: false,

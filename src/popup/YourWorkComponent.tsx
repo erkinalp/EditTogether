@@ -1,7 +1,8 @@
 import * as React from "react";
 import { getHash } from "../../maze-utils/src/hash";
 import { formatJSErrorMessage, getShortErrorMessage } from "../../maze-utils/src/formating";
-import Config, { TitleFormatting } from "../config";
+import Config from "../config";
+import { TitleFormatting } from "../config/config";
 import { asyncRequestToServer } from "../utils/requests";
 import PencilIcon from "../svg-icons/pencilIcon";
 import ClipboardIcon from "../svg-icons/clipboardIcon";

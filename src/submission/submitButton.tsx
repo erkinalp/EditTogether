@@ -137,7 +137,7 @@ export class SubmitButton extends TitleButton {
                                 original: true,
                                 selected: true
                             });
-                        } else {
+                        } else if (isCustomThumbnailSubmission(thumbnail)) {
                             unsubmitted.thumbnails.push({
                                 original: false,
                                 timestamp: thumbnail.timestamp,

@@ -243,7 +243,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
                             return;
                         }
 
-                        if (!t.original) {
+                        if (isCustomThumbnailSubmission(t)) {
                             const unsubmitted = Config.local!.unsubmitted[props.videoID] ??= {
                                 thumbnails: [],
                                 titles: []
