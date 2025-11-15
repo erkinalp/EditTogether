@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CustomThumbnailResult, ThumbnailSubmission, isLiveSync } from "../thumbnails/thumbnailData";
+import { CustomThumbnailResult, ThumbnailSubmission } from "../thumbnails/thumbnailData";
 import { TitleSubmission } from "../titles/titleData";
 import { BrandingResult } from "../videoBranding/videoBranding";
 import { ThumbnailType } from "./ThumbnailComponent";
@@ -15,17 +15,21 @@ import { sendRequestToServer } from "../utils/requests";
 import { objectToURI } from "../../maze-utils/src";
 import { logError } from "../utils/logger";
 import { YourWorkComponent } from "../popup/YourWorkComponent";
-import PersonIcon from "../svg-icons/personIcon";
-import QuestionIcon from "../svg-icons/questionIcon";
-import ExclamationIcon from "../svg-icons/exclamationIcon";
-import CursorIcon from "../svg-icons/cursorIcon";
-import FontIcon from "../svg-icons/fontIcon";
+import PersonIcon from "../svgIcons/personIcon";
+import QuestionIcon from "../svgIcons/questionIcon";
+import ExclamationIcon from "../svgIcons/exclamationIcon";
+import CursorIcon from "../svgIcons/cursorIcon";
+import FontIcon from "../svgIcons/fontIcon";
 import { Tooltip } from "../utils/tooltip";
-
+import { LicenseComponent } from "../license/LicenseComponent";
 import { ToggleOptionComponent } from "../popup/ToggleOptionComponent";
 import { FormattedText } from "../popup/FormattedTextComponent";
 import { isAutoWarningShown } from "./autoWarning";
 import { getAntiTranslatedTitle } from "../titles/titleAntiTranslateData";
+import { isLiveSync } from "../../maze-utils/src/metadataFetcher";
+import { getCurrentPageTitle } from "../../maze-utils/src/elements";
+import { FetchResponse, logRequest } from "../../maze-utils/src/background-request-proxy";
+import { formatJSErrorMessage, getLongErrorMessage } from "../../maze-utils/src/formating";
 
 export interface SubmissionComponentProps {
     videoID: VideoID;
@@ -52,25 +56,34 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
             };
             setChatDisplayName(displayName);
 
-            const values = ["userName", "editTogetherWarningReason"];
-            const result = await sendRequestToServer("GET", "/api/userInfo", {
-                publicUserID: publicUserID,
-                values
-            });
+            const values = ["userName", "deArrowWarningReason"];
+            let result: FetchResponse;
+            try {
+                result = await sendRequestToServer("GET", "/api/userInfo", {
+                    publicUserID: publicUserID,
+                    values
+                });
+            } catch (e) {
+                logError("Caught error while attempting to fetch username and active warnings", e);
+                return;
+            }
 
             if (result.ok) {
                 const userInfo = JSON.parse(result.responseText);
                 username = userInfo.userName;
 
-                if (userInfo.editTogetherWarningReason) {
-                    createWarningTooltip(userInfo.editTogetherWarningReason, displayName);
+                setChatDisplayName({
+                    publicUserID,
+                    username
+                });
+
+                if (userInfo.deArrowWarningReason) {
+                    createWarningTooltip(userInfo.deArrowWarningReason, displayName);
                 }
+            } else {
+                logRequest(result, "CB", "username and active warnings");
             }
 
-            setChatDisplayName({
-                publicUserID,
-                username
-            });
         }).catch(logError);
     }, []);
 
@@ -81,7 +94,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
     React.useEffect(() => {
         (async () => {
             const unformattedOriginalTitle = await getAntiTranslatedTitle(props.videoID)
-                ?? document.title
+                ?? getCurrentPageTitle()
                 ?? chrome.i18n.getMessage("OriginalTitle");
             const originalTitle = await formatTitleInternal(unformattedOriginalTitle, false, TitleFormatting.SentenceCase, true);
             setOriginalTitle(originalTitle);
@@ -158,7 +171,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
             const upvotedThumbnail = unsubmitted.thumbnails.find((t) => t.selected);
             if (upvotedThumbnail) {
                 const upvotedThumbnailIndex = thumbnails.findIndex((t) => (t.type === ThumbnailType.Original && upvotedThumbnail.original) 
-                    || (t.type === ThumbnailType.SpecifiedTime && !upvotedThumbnail.original && t.timestamp === (upvotedThumbnail as any).timestamp));
+                    || (t.type === ThumbnailType.SpecifiedTime && !upvotedThumbnail.original && t.timestamp === upvotedThumbnail.timestamp));
                 if (upvotedThumbnailIndex !== -1) {
                     setUpvotedThumbnailIndex(upvotedThumbnailIndex);
                 }
@@ -236,7 +249,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
                                 titles: []
                             };
 
-                            const existingSubmission = unsubmitted.thumbnails.findIndex((s) => !s.original && (s as any).timestamp === (t as any).timestamp);
+                            const existingSubmission = unsubmitted.thumbnails.findIndex((s) => !s.original && s.timestamp === t.timestamp);
                             if (existingSubmission === -1) {
                                 unsubmitted.thumbnails.unshift(t);
 
@@ -251,7 +264,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
 
                             if (existingSubmission !== -1) {
                                 const extraUnsubmitted = extraThumbnails.findIndex((s) => s.type === ThumbnailType.SpecifiedTime
-                                    && s.timestamp === (t as any).timestamp);
+                                    && s.timestamp === t.timestamp);
 
                                 if (extraUnsubmitted !== -1) {
                                     selectedIndex = defaultThumbnails.length + extraUnsubmitted;
@@ -361,8 +374,8 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
 
                         props.submitClicked(selectedTitle ? {
                             ...selectedTitle,
-                            original: selectedTitle.title === document.title
-                                        || (!!document.title && selectedTitle.title === await formatTitleInternal(document.title!, false, TitleFormatting.SentenceCase, true))
+                            original: selectedTitle.title === getCurrentPageTitle()
+                                        || (!!getCurrentPageTitle() && selectedTitle.title === await formatTitleInternal(getCurrentPageTitle()!, false, TitleFormatting.SentenceCase, true))
                         } : null, selectedThumbnail.current, actAsVip).then((success) => {
                             if (!success) {
                                 setCurrentlySubmitting(false);
@@ -387,7 +400,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
 
                     <div className="cbHelpButtonContainer">
                         <a className="cbNoticeButton"
-                            href="https://wiki.sponsor.ajay.app/w/Guidelines"
+                            href="https://wiki.sponsor.ajay.app/w/DeArrow/Guidelines"
                             target="_blank"
                             rel="noreferrer">
                             <FormattedText
@@ -399,7 +412,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
                         <a className="cbNoticeButton"
                             href={`https://chat.sponsor.ajay.app/#${objectToURI("", {
                                 displayName: getChatDisplayName(chatDisplayName),
-                                customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://matrix.to/#/#edittogether:matrix.org`,
+                                customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://discord.gg/SponsorBlock\nhttps://matrix.to/#/#sponsor:ajay.app?via=matrix.org`,
                                 bigDescription: true
                             }, false)}`}
                             target="_blank"
@@ -413,7 +426,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
 
                     <YourWorkComponent titleFormatting={titleFormatting} />
 
-
+                    <LicenseComponent titleFormatting={titleFormatting} />
                 </>
                 : null
             }
@@ -453,7 +466,7 @@ function updateUnsubmitted(unsubmitted: UnsubmittedSubmission,
         if (unsubmittedThumbnails) {
             thumbnailsResult = unsubmittedThumbnails
                 .filter((t) => thumbnails.every((s) => !t.original && (s.type !== ThumbnailType.SpecifiedTime
-                    || s.timestamp !== (t as any).timestamp)))
+                    || s.timestamp !== t.timestamp)))
                 .map((t) => ({
                 type: ThumbnailType.SpecifiedTime,
                 timestamp: (t as CustomThumbnailResult).timestamp,
@@ -503,7 +516,7 @@ export function getChatDisplayName(chatDisplayName: ChatDisplayName | null): str
             return chatDisplayName.publicUserID;
         }
     } else {
-        return "EditTogether User";
+        return "DeArrow User";
     }
 }
 
@@ -549,7 +562,7 @@ function createWarningTooltip(reason: string, name: ChatDisplayName) {
 
     if (element) {
         const tooltip = new Tooltip({
-            textBoxes: `${chrome.i18n.getMessage("editTogetherMessageRecieved")}:\n\n${reason}`.split("\n"),
+            textBoxes: `${chrome.i18n.getMessage("deArrowMessageRecieved")}:\n\n${reason}`.split("\n"),
             referenceNode: element.parentElement!,
             prependElement: element,
             positionRealtive: false,
@@ -567,23 +580,31 @@ function createWarningTooltip(reason: string, name: ChatDisplayName) {
             buttons: [{
                 name: chrome.i18n.getMessage("GotIt"),
                 listener: async () => {
-                    const result = await sendRequestToServer("POST", "/api/warnUser", {
-                        userID: Config.config!.userID,
-                        enabled: false,
-                        type: 1
-                    });
+                    let result: FetchResponse;
+                    try {
+                        result = await sendRequestToServer("POST", "/api/warnUser", {
+                            userID: Config.config!.userID,
+                            enabled: false,
+                            type: 1
+                        });
+                    } catch (e) {
+                        logError("Caught error while attempting to acknowlege active warning", e);
+                        alert(formatJSErrorMessage(e));
+                        return;
+                    }
 
                     if (result.ok) {
                         tooltip?.close();
                     } else {
-                        alert(`${chrome.i18n.getMessage("warningError")} ${result.status}`);
+                        logRequest(result, "CB", "warning acknowledgement");
+                        alert(getLongErrorMessage(result.status, result.responseText));
                     }
                 }
             }, {
                 name: chrome.i18n.getMessage("questionButton"),
                 listener: () => window.open(`https://chat.sponsor.ajay.app/#${objectToURI("", {
                     displayName: getChatDisplayName(name),
-                    customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://matrix.to/#/#sponsor:ajay.app?via=matrix.org`,
+                    customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://discord.gg/SponsorBlock\nhttps://matrix.to/#/#sponsor:ajay.app?via=matrix.org`,
                     bigDescription: true
                 }, false)}`)
             }],

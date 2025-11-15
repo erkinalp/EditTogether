@@ -30,6 +30,7 @@ export interface VideoDurationResponse {
 }
 
 export enum CategorySkipOption {
+    FallbackToDefault = -2,
     Disabled = -1,
     ShowOverlay,
     ManualSkip,
@@ -228,26 +229,7 @@ export enum NoticeVisibilityMode {
     FadedForAll = 4
 }
 
-export type ShowCustomBrandingInfo = {
-    knownValue: boolean;
-    originalValue: boolean | null;
-    showCasual: boolean | null;
-} | {
-    knownValue: null;
-    actualValue: Promise<boolean>;
-    originalValue: boolean | null;
-    showCasual: boolean | null;
-};
-
-export type CustomThumbnailSubmission = {
-    timestamp: number;
-    original: false;
-};
-
-export type OriginalThumbnailSubmission = {
-    original: true;
-};
-
-export type ThumbnailSubmission = CustomThumbnailSubmission | OriginalThumbnailSubmission;
-
-export type UnsubmittedThumbnailSubmission = ThumbnailSubmission & { selected?: boolean; };
+export enum SegmentListDefaultTab {
+    Segments,
+    Chapters,
+}

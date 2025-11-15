@@ -86,7 +86,8 @@ function buildHideThumbnailCss(): string {
     const result: string[] = [
         ".ytp-ce-covering-image:not(.cb-visible)", // Endcards
         "div.ytp-autonav-endscreen-upnext-thumbnail:not(.cb-visible)", // Autoplay
-        "div.ytp-videowall-still-image:not(.cb-visible)" // End recommendations
+        "div.ytp-videowall-still-image:not(.cb-visible)", // End recommendations
+        "div.ytp-modern-videowall-still-image:not(.cb-visible)" // End recommendations
     ];
 
     const boxesToHide = brandingBoxSelector.split(", ").concat([
@@ -110,17 +111,13 @@ function buildHideTitleCss(): string {
     for (const start of brandingBoxSelector.split(", ")) {
         if (!onMobile()) {
             // Fix smaller titles in playlists on search pages from being hidden
-            // https://github.com/erkinalp/EditTogether/issues/162
+            // https://github.com/ajayyy/DeArrow/issues/162
             const extra = start === "ytd-playlist-renderer" ? " a.ytd-playlist-renderer" : "";
 
             result.push(`${start}${extra} #video-title:not(.cbCustomTitle)`);
         } else {
             result.push(`${start} .media-item-headline .yt-core-attributed-string:not(.cbCustomTitle)`);
         }
-    }
-
-    if (onMobile()) {
-        result.push(".compact-media-item-headline .yt-core-attributed-string:not(.cbCustomTitle)");
     }
 
     return `${result.join(", ")} { display: none !important; }\n`;
@@ -135,7 +132,7 @@ function buildMaxLinesTitleCss(): string {
         if (!onMobile()) {
             // .ta-title-container for compatibility with Tube Archivist
             result.push(`${start} #video-title:not(.ta-title-container)`);
-            result.push(`${start} .yt-lockup-metadata-view-model-wiz__title > .yt-core-attributed-string:not(.ta-title-container)`);
+            result.push(`${start} .yt-lockup-metadata-view-model__title > .yt-core-attributed-string:not(.ta-title-container)`);
         }
     }
 

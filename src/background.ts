@@ -3,25 +3,17 @@ import * as CompileConfig from "../config.json";
 import Config from "./config";
 import { Registration } from "./types";
 import "content-scripts-register-polyfill";
-import { sendRealRequestToCustomServer, setupBackgroundRequestProxy } from "../maze-utils/src/background-request-proxy";
+import { sendRealRequestToCustomServer, serializeOrStringify, setupBackgroundRequestProxy } from "../maze-utils/src/background-request-proxy";
 import { setupTabUpdates } from "../maze-utils/src/tab-updates";
 import { generateUserID } from "../maze-utils/src/setup";
-function serializeOrStringify(e: unknown): string {
-    if (e instanceof Error) return e.stack || e.message || String(e);
-    try {
-        if (typeof e === "object") return JSON.stringify(e as unknown as Record<string, unknown>);
-    } catch (err) {
-        return String(err);
-    }
-    return String(e);
-}
 
 import Utils from "./utils";
-
+import { getExtensionIdsToImportFrom } from "./utils/crossExtension";
 import { isFirefoxOrSafari, waitFor } from "../maze-utils/src";
 import { injectUpdatedScripts } from "../maze-utils/src/cleanup";
 import { logWarn } from "./utils/logger";
 import { chromeP } from "../maze-utils/src/browserApi";
+import { getHash } from "../maze-utils/src/hash";
 const utils = new Utils({
     registerFirefoxContentScript,
     unregisterFirefoxContentScript
@@ -93,8 +85,18 @@ chrome.runtime.onMessage.addListener(function (request, sender, callback) {
 	}
 });
 
-chrome.runtime.onMessageExternal.addListener(() => {
-    return false;
+chrome.runtime.onMessageExternal.addListener((request, sender, callback) => {
+    if (getExtensionIdsToImportFrom().includes(sender.id)) {
+        if (request.message === "requestConfig") {
+            callback({
+                userID: Config.config.userID,
+                allowExpirements: Config.config.allowExpirements,
+                showDonationLink: Config.config.showDonationLink,
+                showUpsells: Config.config.showUpsells,
+                darkMode: Config.config.darkMode,
+            })
+        }
+    }
 });
 
 chrome.runtime.onConnect.addListener((port) => {
@@ -135,6 +137,12 @@ chrome.runtime.onInstalled.addListener(function () {
                 chrome.tabs.create({url: chrome.runtime.getURL("/permissions/index.html")});
             }
         }
+
+        getHash(Config.config!.userID!).then((userID) => {
+            if (userID == "60eed03c8644b7efa32df06977b3a4c11b62f63518e74a0e29baa1fd449cb54f") {
+                Config.config.prideTheme = true;
+            }
+        });
     }, 1500);
 
     if (!isFirefoxOrSafari()) {
@@ -226,6 +234,7 @@ async function submitVote(type: number, UUID: string, category: string, videoID:
 
     try {
         const response = await asyncRequestToServer("POST", "/api/voteOnSponsorTime?UUID=" + UUID + "&videoID=" + videoID + "&userID=" + userID + typeSection);
+
         return {
             status: response.status,
             ok: response.ok,
