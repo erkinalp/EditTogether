@@ -49,6 +49,7 @@ export enum BrandingLocation {
 
 export type ShowCustomBrandingInfo = {
     knownValue: boolean;
+    actualValue?: Promise<boolean>;
     originalValue: boolean | null;
     showCasual: boolean | null;
 } | {

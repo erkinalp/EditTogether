@@ -1,4 +1,4 @@
-import { fetchChannelnfo } from "./thumbnailData";
+import { fetchChannelnfo, isCustomThumbnailResult } from "./thumbnailData";
 import { VideoID } from "../../maze-utils/src/video";
 import { getNumberOfThumbnailCacheRequests, getThumbnailUrl, getVideoThumbnailIncludingUnsubmitted, isActiveThumbnailCacheRequest, isFetchingFromThumbnailCache, queueThumbnailCacheRequest, waitForThumbnailCache } from "../dataFetching";
 import { log, logError } from "../utils/logger";
@@ -398,7 +398,7 @@ export async function createThumbnailImageElement(existingElement: HTMLImageElem
 
             // Will keep waiting for the thumbnail if the channel check finished first
             const thumbnail = await thumbnailPromise;
-            if (thumbnail && !thumbnail.original) {
+            if (thumbnail && isCustomThumbnailResult(thumbnail)) {
                 timestamp = thumbnail.timestamp;
                 isRandomTime = thumbnail.isRandomTime;
             } else if (!thumbnail

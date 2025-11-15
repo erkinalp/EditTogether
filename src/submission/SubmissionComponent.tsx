@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CustomThumbnailResult, ThumbnailSubmission } from "../thumbnails/thumbnailData";
+import { CustomThumbnailResult, ThumbnailSubmission, isCustomThumbnailSubmission } from "../thumbnails/thumbnailData";
 import { TitleSubmission } from "../titles/titleData";
 import { BrandingResult } from "../videoBranding/videoBranding";
 import { ThumbnailType } from "./ThumbnailComponent";
@@ -171,7 +171,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
             const upvotedThumbnail = unsubmitted.thumbnails.find((t) => t.selected);
             if (upvotedThumbnail) {
                 const upvotedThumbnailIndex = thumbnails.findIndex((t) => (t.type === ThumbnailType.Original && upvotedThumbnail.original) 
-                    || (t.type === ThumbnailType.SpecifiedTime && !upvotedThumbnail.original && t.timestamp === upvotedThumbnail.timestamp));
+                    || (t.type === ThumbnailType.SpecifiedTime && isCustomThumbnailSubmission(upvotedThumbnail) && t.timestamp === upvotedThumbnail.timestamp));
                 if (upvotedThumbnailIndex !== -1) {
                     setUpvotedThumbnailIndex(upvotedThumbnailIndex);
                 }
@@ -249,7 +249,7 @@ export const SubmissionComponent = (props: SubmissionComponentProps) => {
                                 titles: []
                             };
 
-                            const existingSubmission = unsubmitted.thumbnails.findIndex((s) => !s.original && s.timestamp === t.timestamp);
+                            const existingSubmission = unsubmitted.thumbnails.findIndex((s) => isCustomThumbnailSubmission(s) && s.timestamp === t.timestamp);
                             if (existingSubmission === -1) {
                                 unsubmitted.thumbnails.unshift(t);
 
@@ -465,7 +465,7 @@ function updateUnsubmitted(unsubmitted: UnsubmittedSubmission,
         const unsubmittedThumbnails = unsubmitted.thumbnails;
         if (unsubmittedThumbnails) {
             thumbnailsResult = unsubmittedThumbnails
-                .filter((t) => thumbnails.every((s) => !t.original && (s.type !== ThumbnailType.SpecifiedTime
+                .filter((t) => thumbnails.every((s) => isCustomThumbnailSubmission(t) && (s.type !== ThumbnailType.SpecifiedTime
                     || s.timestamp !== t.timestamp)))
                 .map((t) => ({
                 type: ThumbnailType.SpecifiedTime,
