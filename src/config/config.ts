@@ -127,6 +127,11 @@ interface SBConfig {
     licenseKey: string | null;
     paymentStatus: string | null;
     freeActivation: boolean;
+    freeTrialStart: number | null;
+    freeTrialEnded: boolean;
+    freeAccessRequestStart: number | null;
+    freeTrialDuration: number;
+    freeAccessWaitingPeriod: number;
 
     firefoxOldContentScriptRegistration: boolean;
     lastIncognitoStatus: boolean;
@@ -149,6 +154,9 @@ class ConfigClass extends ProtoConfig<SBConfig, SBStorage> {
             userID: this.config!.userID,
             licenseKey: this.config!.licenseKey,
             freeActivation: this.config!.freeActivation,
+            freeTrialStart: this.config!.freeTrialStart,
+            freeTrialEnded: this.config!.freeTrialEnded,
+            freeAccessRequestStart: this.config!.freeAccessRequestStart,
 
             firefoxOldContentScriptRegistration: this.config!.firefoxOldContentScriptRegistration
         }).catch(logError);
@@ -228,6 +236,11 @@ const syncDefaults = {
     licenseKey: null,
     paymentStatus: null,
     freeActivation: true,
+    freeTrialStart: null,
+    freeTrialEnded: false,
+    freeAccessRequestStart: null,
+    freeTrialDuration: 1000 * 60 * 60 * 6,
+    freeAccessWaitingPeriod: 1000 * 60 * 60 * 24 * 3,
 
     firefoxOldContentScriptRegistration: false,
     lastIncognitoStatus: false,
