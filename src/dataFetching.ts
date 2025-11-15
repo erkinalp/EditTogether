@@ -1,5 +1,5 @@
 import { VideoID, getVideo, getVideoID, getYouTubeVideoID } from "../maze-utils/src/video";
-import { ThumbnailSubmission, ThumbnailWithRandomTimeResult } from "./thumbnails/thumbnailData";
+import { ThumbnailSubmission, ThumbnailWithRandomTimeResult, isCustomThumbnailResult } from "./thumbnails/thumbnailData";
 import { TitleResult, TitleSubmission } from "./titles/titleData";
 import { FetchResponse, FetchResponseBinary, logRequest, sendBinaryRequestToCustomServer } from "../maze-utils/src/background-request-proxy";
 import { BrandingLocation, BrandingResult, CasualVoteInfo, replaceCurrentVideoBranding, updateBrandingForVideo } from "./videoBranding/videoBranding";
