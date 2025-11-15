@@ -4,6 +4,10 @@ export function logError(...vals: unknown[]): void {
     console.error("[CB]", ...vals);
 }
 
+export function logWarn(...vals: unknown[]): void {
+    console.warn("[CB]", ...vals);
+}
+
 export function log(...text: unknown[]): void {
     if (CompileConfig.debug) {
         console.log(...text);
