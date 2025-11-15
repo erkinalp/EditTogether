@@ -1,7 +1,7 @@
 import * as React from "react";
 import { getHash } from "../../maze-utils/src/hash";
 import { formatJSErrorMessage, getShortErrorMessage } from "../../maze-utils/src/formating";
-import Config from "../config";
+import Config, { TitleFormatting } from "../config";
 import { asyncRequestToServer } from "../utils/requests";
 import PencilIcon from "../svg-icons/pencilIcon";
 import ClipboardIcon from "../svg-icons/clipboardIcon";
@@ -9,7 +9,11 @@ import CheckIcon from "../svg-icons/checkIcon";
 import { showDonationLink } from "../utils/configUtils";
 import { FetchResponse, logRequest } from "../../maze-utils/src/background-request-proxy";
 
-export const YourWorkComponent = () => {
+interface YourWorkComponentProps {
+    titleFormatting?: TitleFormatting;
+}
+
+export const YourWorkComponent = ({ titleFormatting }: YourWorkComponentProps = {}) => {
     const [isSettingUsername, setIsSettingUsername] = React.useState(false);
     const [username, setUsername] = React.useState("");
     const [newUsername, setNewUsername] = React.useState("");
