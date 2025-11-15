@@ -234,7 +234,7 @@ export async function getVideoBranding(videoID: VideoID, queryByHash: boolean, w
                     const thumbnail = currentResult.thumbnails[0];
                     const title = currentResult.titles[0];
 
-                    const timestamp = thumbnail && !thumbnail.original ? thumbnail.timestamp 
+                    const timestamp = thumbnail && isCustomThumbnailResult(thumbnail) ? thumbnail.timestamp 
                         : await getTimestampFromRandomTime(videoID, currentResult);
 
                     // Fetch for a cached thumbnail if it is either not loaded yet, or has an out of date title
