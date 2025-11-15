@@ -14,7 +14,8 @@ interface YourWorkComponentProps {
     titleFormatting?: TitleFormatting;
 }
 
-export const YourWorkComponent = ({ titleFormatting }: YourWorkComponentProps = {}) => {
+export const YourWorkComponent = ({ titleFormatting: _titleFormatting }: YourWorkComponentProps = {}) => {
+    void _titleFormatting; // Keep prop for upstream compatibility
     const [isSettingUsername, setIsSettingUsername] = React.useState(false);
     const [username, setUsername] = React.useState("");
     const [newUsername, setNewUsername] = React.useState("");
