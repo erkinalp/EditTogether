@@ -111,6 +111,7 @@ interface SBConfig {
     casualModeSettings: Record<string, number>;
     showOriginalThumbWhenCasual: boolean;
     onlyShowCasualIconForCustom: boolean;
+    formatCasualTitles: boolean;
     channelOverrides: Record<string, ConfigurationID>;
     customConfigurations: Record<ConfigurationID, CustomConfiguration>;
     showInfoAboutRandomThumbnails: boolean;
@@ -206,6 +207,7 @@ const syncDefaults = {
     casualModeSettings: casualVoteCategories.reduce((acc, { id }) => { acc[id] = 1; return acc; }, {}),
     showOriginalThumbWhenCasual: false,
     onlyShowCasualIconForCustom: false,
+    formatCasualTitles: true,
     channelOverrides: {},
     customConfigurations: {},
     showInfoAboutRandomThumbnails: false,
