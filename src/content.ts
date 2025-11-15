@@ -45,7 +45,6 @@ import * as documentScript from "../dist/js/document.js";
 import { isVorapisInstalled, runCompatibilityChecks } from "./utils/compatibility";
 import { cleanPage } from "./utils/pageCleaner";
 import { addCleanupListener } from "../maze-utils/src/cleanup";
-import { hideDeArrowPromotion, tryShowingDeArrowPromotion } from "./dearrowPromotion";
 import { asyncRequestToServer } from "./utils/requests";
 import { isMobileControlsOpen } from "./utils/mobileUtils";
 import { defaultPreviewTime } from "./utils/constants";
@@ -450,8 +449,6 @@ function resetValues() {
         upcomingNotice.close();
         upcomingNotice = null;
     }
-
-    hideDeArrowPromotion();
 }
 
 function videoIDChange(): void {
@@ -493,8 +490,6 @@ function videoIDChange(): void {
     // Clear unsubmitted segments from the previous video
     sponsorTimesSubmitting = [];
     updateSponsorTimesSubmitting();
-
-    tryShowingDeArrowPromotion().catch(logWarn);
 
     checkPreviewbarState();
 
