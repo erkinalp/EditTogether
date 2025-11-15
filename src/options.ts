@@ -16,7 +16,6 @@ import { localizeHtmlPage } from "../maze-utils/src/setup";
 import { StorageChangesObject } from "../maze-utils/src/config";
 import { getHash } from "../maze-utils/src/hash";
 import { isFirefoxOrSafari } from "../maze-utils/src";
-
 import { asyncRequestToServer } from "./utils/requests";
 import AdvancedSkipOptions from "./render/AdvancedSkipOptions";
 const utils = new Utils();
@@ -72,14 +71,17 @@ async function init() {
         document.documentElement.setAttribute("data-theme", "light");
     }
 
+    if (Config.config.prideTheme) {
+        document.documentElement.setAttribute("data-theme", "pride");
+
+        (document.getElementById("title-bar-logo") as HTMLImageElement).src = "../icons/sb-pride.png";
+    }
+
     const donate = document.getElementById("sbDonate");
     donate.addEventListener("click", () => Config.config.donateClicked = Config.config.donateClicked + 1);
     if (!showDonationLink()) {
         donate.classList.add("hidden");
     }
-
-    // EditTogether promotion
-
 
     const skipToHighlightKeybind = document.querySelector(`[data-sync="skipToHighlightKeybind"] .optionLabel`) as HTMLElement;
     skipToHighlightKeybind.innerText = `${chrome.i18n.getMessage("skip_to_category").replace("{0}", chrome.i18n.getMessage("category_poi_highlight")).replace("?", "")}:`;
@@ -176,6 +178,17 @@ async function init() {
                                 document.documentElement.setAttribute("data-theme", "dark");
                             } else {
                                 document.documentElement.setAttribute("data-theme", "light");
+                            }
+                            break;
+                        case "prideTheme":
+                            if (checkbox.checked) {
+                                document.documentElement.setAttribute("data-theme", "pride");
+                            } else {
+                                if (Config.config.darkMode) {
+                                    document.documentElement.setAttribute("data-theme", "dark");
+                                } else {
+                                    document.documentElement.setAttribute("data-theme", "light");
+                                }
                             }
                             break;
                         case "trackDownvotes":
@@ -396,7 +409,7 @@ async function shouldHideOption(element: Element): Promise<boolean> {
 /**
  * Called when the config is updated
  */
-function optionsConfigUpdateListener(changes: StorageChangesObject) {
+function optionsConfigUpdateListener() {
     const optionsContainer = document.getElementById("options");
     const optionsElements = optionsContainer.querySelectorAll("*");
 
@@ -405,12 +418,6 @@ function optionsConfigUpdateListener(changes: StorageChangesObject) {
             case "display":
                 updateDisplayElement(<HTMLElement> optionsElements[i])
                 break;
-        }
-    }
-
-    if (changes.categorySelections) {
-        for (const chooser of categoryChoosers) {
-            chooser.update();
         }
     }
 }
@@ -591,6 +598,8 @@ function activatePrivateTextChange(element: HTMLElement) {
                     if (userInfo.warnings > 0 || userInfo.banned) {
                         setButton.classList.add("hidden");
                     }
+                }).catch(e => {
+                    console.error("[SB] Caught error while fetching user info for the new user ID", e)
                 });
             }
 
@@ -656,7 +665,7 @@ function downloadConfig(element: Element) {
     const jsonData = JSON.parse(JSON.stringify(optionType === "local" ? Config.cachedLocalStorage : Config.cachedSyncConfig));
     const dateTimeString = new Date().toJSON().replace("T", "_").replace(/:/g, ".").replace(/.\d+Z/g, "")
     file.setAttribute("href", `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(jsonData))}`);
-    file.setAttribute("download", `EditTogether${optionType === "local" ? "OtherData" : "Config"}_${dateTimeString}.json`);
+    file.setAttribute("download", `SponsorBlock${optionType === "local" ? "OtherData" : "Config"}_${dateTimeString}.json`);
     document.body.append(file);
     file.click();
     file.remove();

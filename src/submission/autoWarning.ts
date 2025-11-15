@@ -1,7 +1,10 @@
 import { objectToURI } from "../../maze-utils/src";
+import { logRequest } from "../../maze-utils/src/background-request-proxy";
+import { getCurrentPageTitle } from "../../maze-utils/src/elements";
 import { getHash } from "../../maze-utils/src/hash";
 import Config from "../config/config";
 import { cleanEmojis, cleanFancyText, cleanPunctuation, isWordCustomCapitalization } from "../titles/titleFormatter";
+import { logError } from "../utils/logger";
 import { sendRequestToServer } from "../utils/requests";
 import { Tooltip } from "../utils/tooltip";
 import { ChatDisplayName, getChatDisplayName } from "./SubmissionComponent";
@@ -22,7 +25,7 @@ let timeout: NodeJS.Timeout | null = null;
 const shownWarnings: string[] = [];
 const autoWarningChecks: AutoWarningCheck[] = [
     {
-        error: chrome.i18n.getMessage("EditTogetherStartLowerCaseWarning"),
+        error: chrome.i18n.getMessage("DeArrowStartLowerCaseWarning"),
         check: (title) => {
             return {
                 found: !!title.match(/^\p{Ll}\S+ \S+ \S+/u) && !isWordCustomCapitalization(title.split(" ")[0])
@@ -31,7 +34,7 @@ const autoWarningChecks: AutoWarningCheck[] = [
         id: "startLowerCase"
     },
     {
-        error: chrome.i18n.getMessage("EditTogetherDiscussingWarning"),
+        error: chrome.i18n.getMessage("DeArrowDiscussingWarning"),
         check: (title) => {
             const match = title.match(/^(discussing|explaining|talking about|summarizing) .\S+ .\S+/i)?.[1];
             return {
@@ -41,7 +44,7 @@ const autoWarningChecks: AutoWarningCheck[] = [
         },
         id: "discussing"
     }, {
-        error: chrome.i18n.getMessage("EditTogetherEndWithPeriodWarning"),
+        error: chrome.i18n.getMessage("DeArrowEndWithPeriodWarning"),
         check: (title) => {
             return {
                 found: !!title.match(/\.$/u)
@@ -49,7 +52,7 @@ const autoWarningChecks: AutoWarningCheck[] = [
         },
         id: "endWithPeriod"
     }, {
-        error: chrome.i18n.getMessage("EditTogetherClickbaitWarning"),
+        error: chrome.i18n.getMessage("DeArrowClickbaitWarning"),
         check: (title, originalTitle) => {
             const regex = /clickbait|fake news|fake video|boring|yapping|yap|worth your time/i;
             const match = title.match(regex)?.[0];
@@ -62,7 +65,7 @@ const autoWarningChecks: AutoWarningCheck[] = [
         },
         id: "clickbait"
     }, {
-        error: chrome.i18n.getMessage("EditTogetherAddingAnswerWarning"),
+        error: chrome.i18n.getMessage("DeArrowAddingAnswerWarning"),
         check: (title, originalTitle) => {
             // Only if ends with ? or ... and then optionally more symbols
             const cleaned = cleanPunctuation(cleanFancyText(cleanEmojis(originalTitle.toLowerCase())));
@@ -74,7 +77,7 @@ const autoWarningChecks: AutoWarningCheck[] = [
         },
         id: "addingAnswer"
     }, {
-        error: chrome.i18n.getMessage("EditTogetherKeepingBadOriginalWarning"),
+        error: chrome.i18n.getMessage("DeArrowKeepingBadOriginalWarning"),
         check: (title, originalTitle) => {
             const regex = /massive problem|you need|insane|crazy|you won't believe this/i;
             const match = title.match(regex)?.[0];
@@ -87,7 +90,7 @@ const autoWarningChecks: AutoWarningCheck[] = [
         },
         id: "keepingBadOriginal"
     }, {
-        error: chrome.i18n.getMessage("EditTogetherEmojiWarning"),
+        error: chrome.i18n.getMessage("DeArrowEmojiWarning"),
         check: (title) => {
             return {
                 found: cleanEmojis(title.trim()) !== title.trim()
@@ -125,7 +128,7 @@ export function showAutoWarningIfRequired(title: string, element: HTMLElement): 
 function showAutoWarningIfRequiredInternal(title: string, element: HTMLElement): void {
     timeout = null;
 
-    const originalTitle = document.title || "";
+    const originalTitle = getCurrentPageTitle() || "";
     const warning = getAutoWarning(title, originalTitle);
     if (warning && warning.id !== currentWarningId) {
         activeTooltip?.close();
@@ -162,24 +165,32 @@ function showAutoWarningIfRequiredInternal(title: string, element: HTMLElement):
                     const publicUserID = await getHash(Config.config!.userID!);
 
                     const values = ["userName"];
-                    const result = await sendRequestToServer("GET", "/api/userInfo", {
-                        publicUserID: publicUserID,
-                        values
-                    });
+                    let name: ChatDisplayName = {
+                        publicUserID,
+                        username: null
+                    };
+                    try {
+                        const result = await sendRequestToServer("GET", "/api/userInfo", {
+                            publicUserID: publicUserID,
+                            values
+                        });
 
-                    let name: ChatDisplayName | null = null;
-
-                    if (result.ok) {
-                        const userInfo = JSON.parse(result.responseText);
-                        name = {
-                            publicUserID,
-                            username: userInfo.userName
-                        };
+                        if (result.ok) {
+                            const userInfo = JSON.parse(result.responseText);
+                            name = {
+                                publicUserID,
+                                username: userInfo.userName
+                            };
+                        } else {
+                            logRequest(result, "CB", "username for chat");
+                        }
+                    } catch (e) {
+                        logError("Caught error while attempting to fetch user's username before opening the help chat", e);
                     }
 
                     window.open(`https://chat.sponsor.ajay.app/#${objectToURI("", {
                         displayName: getChatDisplayName(name),
-                        customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://matrix.to/#/#edittogether:matrix.org?via=matrix.org`,
+                        customDescription: `${chrome.i18n.getMessage("chatboxDescription")}\n\nhttps://discord.gg/SponsorBlock\nhttps://matrix.to/#/#sponsor:ajay.app?via=matrix.org`,
                         bigDescription: true
                     }, false)}`);
                 }

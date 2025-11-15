@@ -1,17 +1,17 @@
 import { getYouTubeTitleNodeSelector } from "../../maze-utils/src/elements";
-import { getVideoID, isOnChannelPage, VideoID } from "../../maze-utils/src/video";
+import { extractVideoID, getVideoID, isOnChannelPage, VideoID } from "../../maze-utils/src/video";
 import { getElement, isVisibleOrParent, waitForElement } from "../../maze-utils/src/dom";
 import { ThumbnailResult } from "../thumbnails/thumbnailData";
 import { getThumbnailImageSelector, replaceThumbnail } from "../thumbnails/thumbnailRenderer";
 import { TitleResult } from "../titles/titleData";
 import { findOrCreateShowOriginalButton, getOrCreateTitleElement, getOriginalTitleElement, hideAndUpdateShowOriginalButton as hideAndUpdateShowOriginalButton, replaceTitle } from "../titles/titleRenderer";
 import { setThumbnailListener } from "../../maze-utils/src/thumbnailManagement";
-import Config, { ThumbnailCacheOption } from "../config/config";
+import Config, { ThumbnailCacheOption, TitleFormatting } from "../config/config";
 import { logError } from "../utils/logger";
 import { getVideoCasualInfo, getVideoTitleIncludingUnsubmitted } from "../dataFetching";
 import { handleOnboarding } from "./onboarding";
 import { cleanEmojis, cleanResultingTitle } from "../titles/titleFormatter";
-import { shouldDefaultToCustom, shouldDefaultToCustomFastCheck, shouldUseCrowdsourcedTitles } from "../config/channelOverrides";
+import { getTitleFormatting, shouldDefaultToCustom, shouldDefaultToCustomFastCheck, shouldUseCrowdsourcedTitles } from "../config/channelOverrides";
 import { onMobile } from "../../maze-utils/src/pageInfo";
 import { addMaxTitleLinesCssToPage } from "../utils/cssInjector";
 import { casualVoteButton, submitButton } from "../video";
@@ -49,6 +49,7 @@ export enum BrandingLocation {
 
 export type ShowCustomBrandingInfo = {
     knownValue: boolean;
+    actualValue?: Promise<boolean>;
     originalValue: boolean | null;
     showCasual: boolean | null;
 } | {
@@ -70,7 +71,7 @@ export const brandingBoxSelector = !onMobile()
 export const watchPageThumbnailSelector = ".ytp-cued-thumbnail-overlay";
 
 const twoRingLogo = chrome.runtime.getURL("icons/logo-2r.svg");
-const threeRingLogo = chrome.runtime.getURL("icons/pencil.svg");
+const threeRingLogo = chrome.runtime.getURL("icons/logo.svg");
 const casualLogo = chrome.runtime.getURL("icons/logo-casual.svg");
 
 const videoBrandingInstances: Record<VideoID, VideoBrandingInstance> = {}
@@ -90,7 +91,7 @@ export async function replaceCurrentVideoBranding(): Promise<[boolean, boolean]>
             if (firstVisible) return firstVisible;
         }
 
-        return await waitForElement(possibleSelectors[0].selector, !onClipPage, true) as HTMLElement;
+        return await waitForElement(possibleSelectors[0].selector, !onClipPage, true, true) as HTMLElement;
     })();
     const titles = (possibleSelectors.map((selector) => getElement(selector.selector, selector.checkVisibility && !onClipPage, true, true)).filter((e) => !!e)) as HTMLElement[];
     const promises: [Promise<boolean>, Promise<boolean>] = [Promise.resolve(false), Promise.resolve(false)]
@@ -292,37 +293,6 @@ export function getLinkElement(element: HTMLElement, brandingLocation: BrandingL
     }
 }
 
-async function extractVideoID(link: HTMLAnchorElement) {
-    const videoIDRegex = link.href?.match?.(/(?:\?|&)v=(\S{11})|\/shorts\/(\S{11})/);
-    let videoID = (videoIDRegex?.[1] || videoIDRegex?.[2]) as VideoID;
-
-    if (!videoID) {
-        const imgBackground = link.querySelector(".ytp-tooltip-bg") as HTMLElement;
-        if (imgBackground) {
-            const href = imgBackground.style.backgroundImage?.match(/url\("(.+)"\)/)?.[1];
-            if (href) {
-                videoID = href.match(/\/vi\/(\S{11})/)?.[1] as VideoID;
-            }
-        } else {
-            const image = link.querySelector(`yt-image img, img.video-thumbnail-img, yt-img-shadow:not([id="avatar"]) img`) as HTMLImageElement;
-            if (image) {
-                let href = image.getAttribute("src");
-                if (!href) {
-                    // wait source to be setup
-                    await waitForImageSrc(image);
-                    href = image.getAttribute("src");
-                }
-    
-                if (href) {
-                    videoID = href.match(/\/vi\/(\S{11})/)?.[1] as VideoID;
-                }
-            }
-        }
-    }
-
-    return videoID;
-}
-
 export async function extractVideoIDFromElement(element: HTMLElement, brandingLocation: BrandingLocation): Promise<VideoID | null> {
     const link = getLinkElement(element, brandingLocation);
     if (link) { 
@@ -355,7 +325,7 @@ export async function handleShowOriginalButton(element: HTMLElement, videoID: Vi
         const button = await findOrCreateShowOriginalButton(element, brandingLocation, videoID);
         const image = button.querySelector("img") as HTMLImageElement;
         if (image) {
-            const shouldShowCasualTitle = await shouldShowCasual(videoID, showCustomBranding, brandingLocation);
+            const shouldShowCasualTitle = await shouldShowCasual(videoID, element, showCustomBranding, brandingLocation);
             if (shouldShowCasualTitle && (customTitle || !Config.config!.onlyShowCasualIconForCustom)) {
                 image.src = casualLogo;
                 image.classList.add("cbCasualTitle");
@@ -381,7 +351,7 @@ function getAndUpdateVideoBrandingInstances(videoID: VideoID, updateBranding: ()
     if (!videoBrandingInstances[videoID]) {
         videoBrandingInstances[videoID] = {
             showCustomBranding: {
-                knownValue: null,
+                knownValue: shouldDefaultToCustomFastCheck(videoID),
                 actualValue: shouldDefaultToCustom(videoID),
                 originalValue: shouldDefaultToCustomFastCheck(videoID),
                 showCasual: Config.config!.casualMode
@@ -417,8 +387,13 @@ export async function toggleShowCustom(videoID: VideoID, originalTitleElement: H
                 return await internalSetShowCustom(videoID, originalTitleElement, brandingLocation, true, false);
             } else {
                 if (shouldShowCustom) {
-                    // Go to original
-                    return await internalSetShowCustom(videoID, originalTitleElement, brandingLocation, false, false);
+                    if (Config.config!.formatCasualTitles && await getTitleFormatting(videoID) !== TitleFormatting.Disable) {
+                        // Go to original
+                        return await internalSetShowCustom(videoID, originalTitleElement, brandingLocation, false, false);
+                    } else {
+                        // Go back to casual
+                        return await internalSetShowCustom(videoID, originalTitleElement, brandingLocation, true, true);
+                    }
                 } else {
                     if (!Config.config!.showOriginalOnHover) {
                         // Go to casual
@@ -463,7 +438,7 @@ async function updateCurrentlyDefaultShowCustom(videoID: VideoID): Promise<void>
                     .includes(videoBrandingInstances[videoID].showCustomBranding.knownValue)) {
 
         videoBrandingInstances[videoID].showCustomBranding = {
-            knownValue: null,
+            knownValue: shouldDefaultToCustomFastCheck(videoID),
             actualValue: shouldDefaultToCustom(videoID),
             originalValue: shouldDefaultToCustomFastCheck(videoID),
             showCasual: Config.config!.casualMode
@@ -480,6 +455,18 @@ export async function updateBrandingForVideo(videoID: VideoID): Promise<void> {
         videoBrandingInstances[videoID].updateBrandingCallbacks = [];
 
         await Promise.all(updateBrandingCallbacks.map((updateBranding) => updateBranding()));
+    }
+}
+
+export function updateBrandingForAllVideos(): void {
+    for (const videoID in videoBrandingInstances) {
+        const updateBrandingCallbacks = videoBrandingInstances[videoID].updateBrandingCallbacks;
+        // They will be added back to the array
+        videoBrandingInstances[videoID].updateBrandingCallbacks = [];
+
+        for (const updateBranding of updateBrandingCallbacks) {
+            updateBranding().catch(logError);
+        }
     }
 }
 
@@ -531,7 +518,8 @@ export function setupOptionChangeListener(): void {
             "showOriginalOnHover",
             "showLiveCover",
             "formatCustomTitles",
-            "formatOriginalTitles"
+            "formatOriginalTitles",
+            "formatCasualTitles"
         ];
 
         if (settingsToReload.some((name) => (changes[name] && changes[name].newValue !== changes[name].oldValue))) {
@@ -560,37 +548,6 @@ export function setupOptionChangeListener(): void {
     });
 }
 
-const imagesWaitingFor = new Map<HTMLImageElement, Promise<void>>();
-function waitForImageSrc(image: HTMLImageElement): Promise<void> {
-    const existingPromise = imagesWaitingFor.get(image);
-    if (!existingPromise) {
-        const result = new Promise<void>((resolve) => {
-            const observer = new MutationObserver((mutations) => {
-                if (!chrome.runtime?.id) return;
-
-                for (const mutation of mutations) {
-                    if (mutation.attributeName === "src"
-                            && image.src !== "") {
-                        observer.disconnect();
-                        resolve();
-
-                        imagesWaitingFor.delete(image);
-                        break;
-                    }
-                }
-            });
-
-            observer.observe(image, { attributes: true });
-        });
-
-        imagesWaitingFor.set(image, result);
-
-        return result;
-    }
-
-    return existingPromise;
-}
-
 async function hasCustomTitleWithOriginalTitle(videoID: VideoID, originalTitleElement: HTMLElement, brandingLocation: BrandingLocation): Promise<boolean> {
     const title = await getVideoTitleIncludingUnsubmitted(videoID, brandingLocation);
     const originalTitle = originalTitleElement?.textContent;
@@ -606,18 +563,20 @@ export async function hasCustomTitle(videoID: VideoID, element: HTMLElement, bra
 }
 
 export function getActualShowCustomBranding(showCustomBranding: ShowCustomBrandingInfo): Promise<boolean> {
-    if (showCustomBranding.knownValue === null) {
-        return (showCustomBranding as { actualValue: Promise<boolean> }).actualValue;
-    } else {
-        return Promise.resolve(showCustomBranding.knownValue);
-    }
+    return showCustomBranding.knownValue === null 
+        ? showCustomBranding.actualValue
+        : Promise.resolve(showCustomBranding.knownValue);
 }
 
-export async function shouldShowCasual(videoID: VideoID, showCustomBranding: ShowCustomBrandingInfo, brandingLocation: BrandingLocation): Promise<boolean> {
-    return !!showCustomBranding.showCasual && await shouldShowCasualOnVideo(videoID, brandingLocation);
+export async function shouldShowCasual(videoID: VideoID, element: HTMLElement, showCustomBranding: ShowCustomBrandingInfo, brandingLocation: BrandingLocation): Promise<boolean> {
+    return !!showCustomBranding.showCasual && await shouldShowCasualOnVideo(videoID, element, brandingLocation);
 }
 
-export async function shouldShowCasualOnVideo(videoID: VideoID, brandingLocation: BrandingLocation): Promise<boolean> {
+export function shouldShowCasualOnVideo(videoID: VideoID, element: HTMLElement, brandingLocation: BrandingLocation): Promise<boolean> {
+    return shouldShowCasualOnVideoWithOriginalTitleElement(videoID, getOriginalTitleElement(element, brandingLocation), brandingLocation);
+}
+
+export async function shouldShowCasualOnVideoWithOriginalTitleElement(videoID: VideoID, originalTitleElement: HTMLElement, brandingLocation: BrandingLocation): Promise<boolean> {
     if (!Config.config!.casualMode) return false;
 
     const unsubmittedInfo = Config.local!.unsubmitted[videoID];
@@ -625,9 +584,10 @@ export async function shouldShowCasualOnVideo(videoID: VideoID, brandingLocation
         return unsubmittedInfo.casual;
     }
 
-    const currentPageTitle = document.title;
+    const currentPageTitle = originalTitleElement.textContent;
     const casualInfo = (await getVideoCasualInfo(videoID, brandingLocation))
-        .filter((v) => !v.title || v.title.toLowerCase() === currentPageTitle?.toLowerCase());
+        .filter((v) => !v.title || v.title.toLowerCase() === currentPageTitle?.toLowerCase().trim());
+
     for (const category of casualInfo) {
         const configAmount = Config.config!.casualModeSettings[category.id];
         if (configAmount && category.count >= configAmount) {
@@ -638,7 +598,7 @@ export async function shouldShowCasualOnVideo(videoID: VideoID, brandingLocation
 }
 
 export async function showThreeShowOriginalStages(videoID: VideoID, originalTitleElement: HTMLElement, brandingLocation: BrandingLocation): Promise<boolean> {
-    return await shouldShowCasualOnVideo(videoID, brandingLocation)
+    return await shouldShowCasualOnVideoWithOriginalTitleElement(videoID, originalTitleElement, brandingLocation)
         && await hasCustomTitleWithOriginalTitle(videoID, originalTitleElement, brandingLocation)
         && await shouldDefaultToCustom(videoID);
 }

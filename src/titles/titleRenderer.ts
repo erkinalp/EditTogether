@@ -80,7 +80,7 @@ export async function replaceTitle(element: HTMLElement, videoID: VideoID, showC
                 && (await getTitleFormatting(videoID) !== TitleFormatting.Disable || originalTitle.toLowerCase() !== title.toLowerCase())
                 && (await getTitleFormatting(videoID) !== TitleFormatting.Disable 
                     || await shouldCleanEmojis(videoID) || cleanEmojis(originalTitle.toLowerCase()) !== cleanEmojis(title.toLowerCase()))
-                && (!await shouldShowCasual(videoID, showCustomBranding, brandingLocation) 
+                && (!await shouldShowCasual(videoID, element, showCustomBranding, brandingLocation) 
                     || (originalTitle.toLowerCase() === title.toLowerCase() && await getTitleFormatting(videoID) !== TitleFormatting.Disable))) {
             const formattedTitle = await formatTitle(title, true, videoID);
             if (!await isOnCorrectVideo(element, brandingLocation, videoID)) return false;
@@ -103,7 +103,8 @@ export async function replaceTitle(element: HTMLElement, videoID: VideoID, showC
                 await waitFor(() => originalTitleElement!.textContent!.length > 0, 5000).catch(() => null);
             }
 
-            if (getOriginalTitleText(originalTitleElement, brandingLocation)) {
+            if (getOriginalTitleText(originalTitleElement, brandingLocation) 
+                    && (!await shouldShowCasual(videoID, element, showCustomBranding, brandingLocation) || Config.config!.formatCasualTitles)) {
                 const originalText = getOriginalTitleText(originalTitleElement, brandingLocation).trim();
                 const originalTitle = Config.config!.ignoreTranslatedTitles
                     ? await getAntiTranslatedTitle(videoID) ?? originalText
@@ -119,6 +120,7 @@ export async function replaceTitle(element: HTMLElement, videoID: VideoID, showC
                 setCustomTitle(modifiedTitle, element, brandingLocation);
             } else {
                 showOriginalTitle(element, brandingLocation);
+                return false;
             }
         }
         if (originalTitleElement.parentElement?.title) {
@@ -316,10 +318,12 @@ function getTitleSelector(brandingLocation: BrandingLocation): string[] {
                 "#movie-title", // Movies in related
                 "#description #title", // Related videos in description
                 ".yt-lockup-metadata-view-model-wiz__title .yt-core-attributed-string", // New desktop related
+                ".yt-lockup-metadata-view-model__title .yt-core-attributed-string", // New desktop related
                 ".ShortsLockupViewModelHostMetadataTitle .yt-core-attributed-string", // New desktop shorts
                 ".shortsLockupViewModelHostMetadataTitle .yt-core-attributed-string", // New desktop shorts
                 ".details .media-item-headline .yt-core-attributed-string", // Mobile YouTube
                 ".reel-item-metadata h3 .yt-core-attributed-string", // Mobile YouTube Shorts
+                ".shortsLockupViewModelHostMetadataTitle .yt-core-attributed-string", // Mobile YouTube Shorts
                 ".details > .yt-core-attributed-string", // Mobile YouTube Channel Feature
                 ".compact-media-item-headline .yt-core-attributed-string", // Mobile YouTube Compact,
                 ".amsterdam-playlist-title .yt-core-attributed-string", // Mobile YouTube Playlist Header,
@@ -336,9 +340,10 @@ function getTitleSelector(brandingLocation: BrandingLocation): string[] {
         case BrandingLocation.Endcards:
             return [".ytp-ce-video-title", ".ytp-ce-playlist-title"];
         case BrandingLocation.Autoplay:
+        case BrandingLocation.EndAutonav:
             return [".ytp-autonav-endscreen-upnext-title"];
         case BrandingLocation.EndRecommendations:
-            return [".ytp-videowall-still-info-title"];
+            return [".ytp-videowall-still-info-title", ".ytp-modern-videowall-still-info-title"];
         case BrandingLocation.EmbedSuggestions:
             return [".ytp-suggestion-title"];
         case BrandingLocation.UpNextPreview:
@@ -390,11 +395,18 @@ function createTitleElement(element: HTMLElement, originalTitleElement: HTMLElem
             || brandingLocation === BrandingLocation.Autoplay
             || brandingLocation === BrandingLocation.EmbedSuggestions
             || brandingLocation === BrandingLocation.Notification
+            || brandingLocation === BrandingLocation.EndAutonav
             || originalTitleElement.id === "movie-title"
             || (originalTitleElement.id === "title" && originalTitleElement.parentElement?.id === "description")) {
         const container = document.createElement("div");
         container.appendChild(titleElement);
-        originalTitleElement.parentElement?.prepend(container);
+
+        if (brandingLocation === BrandingLocation.EndAutonav) {
+            // Add it in right place
+            originalTitleElement.parentElement?.insertBefore(container, originalTitleElement.nextSibling);
+        } else {
+            originalTitleElement.parentElement?.prepend(container);
+        }
 
         // Move original title element over to this element
         container.prepend(originalTitleElement);
@@ -417,10 +429,11 @@ function createTitleElement(element: HTMLElement, originalTitleElement: HTMLElem
             titleElement.parentElement!.style.justifyContent = "space-between";
 
             // For 2024 Oct new UI
-            if (titleElement.parentElement!.classList.contains("yt-lockup-metadata-view-model-wiz__title")) {
-                titleElement.parentElement!.style.maxHeight = `calc(${getComputedStyle(titleElement.parentElement!).lineHeight} * ${Math.max(1, Config.config!.titleMaxLines)}`;
+            if (titleElement.parentElement!.classList.contains("yt-lockup-metadata-view-model__title")) {
+                titleElement.parentElement!.classList.add("cbTitle24");
+                titleElement.parentElement!.parentElement!.style.setProperty("--cb-max-height", `calc(${getComputedStyle(titleElement.parentElement!).lineHeight} * ${Math.max(1, Config.config!.titleMaxLines)})`)
 
-                const container = titleElement.closest(".yt-lockup-metadata-view-model-wiz__text-container") as HTMLElement;
+                const container = titleElement.closest(".yt-lockup-metadata-view-model__text-container") as HTMLElement;
                 if (container) {
                     container.style.width = "100%";
                 }
@@ -493,7 +506,7 @@ export async function hideAndUpdateShowOriginalButton(videoID: VideoID, element:
             if (await getActualShowCustomBranding(showCustomBranding)) {
                 buttonImage.classList.remove("cbOriginalShown");
                 if (await showThreeShowOriginalStages(videoID, originalTitleElement, brandingLocation)
-                        && await shouldShowCasual(videoID, showCustomBranding, brandingLocation)
+                        && await shouldShowCasual(videoID, element, showCustomBranding, brandingLocation)
                         && await hasCustomTitle(videoID, element, brandingLocation)) {
                     buttonElement.title = chrome.i18n.getMessage("ShowModified");
                 } else {
@@ -572,7 +585,7 @@ async function createShowOriginalButton(element: HTMLElement, originalTitleEleme
 
     buttonElement.draggable = false;
     buttonImage.className = "cbShowOriginalImage";
-    buttonImage.src = chrome.runtime.getURL("icons/pencil.svg");
+    buttonImage.src = chrome.runtime.getURL("icons/logo.svg");
     buttonElement.appendChild(buttonImage);
 
     if (!await shouldDefaultToCustom(videoID)) {
@@ -718,7 +731,7 @@ async function createShowOriginalButton(element: HTMLElement, originalTitleEleme
         buttonElement.classList.add("cbMobile");
 
         // Add hover to show
-        const box = buttonElement.closest(".details, .compact-media-item-metadata, .reel-item-metadata");
+        const box = buttonElement.closest(".details, .compact-media-item-metadata, .reel-item-metadata, .shortsLockupViewModelHost");
         if (box) {
             let readyToHide = false;
             box.addEventListener("touchstart", () => {

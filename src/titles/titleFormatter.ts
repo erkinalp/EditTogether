@@ -1,7 +1,7 @@
 import { VideoID } from "../../maze-utils/src/video";
 import Config, { TitleFormatting } from "../config/config";
 import { getTitleFormatting, shouldCleanEmojis } from "../config/channelOverrides";
-import { acronymBlocklist, allowlistedStartOfWords, allowlistedWords, fancyTextConversions, notStartOfSentence, titleCaseDetectionNotCapitalized, titleCaseNotCapitalized } from "./titleFormatterData";
+import { acronymBlocklist, allowlistedStartOfWords, allowlistedWords, fancyTextConversions, notStartOfSentence, titleCaseNotCapitalized } from "./titleFormatterData";
 import { chromeP } from "../../maze-utils/src/browserApi";
 import type { LanguageIdentifier } from "cld3-asm";
 
@@ -109,9 +109,9 @@ export async function toSentenceCase(str: string, isCustom: boolean): Promise<st
             result += await capitalizeFirstLetter(word, isTurkiq) + " ";
         } else if (forceKeepFormatting(word)
             || isAcronymStrict(word)
-            || ((!inTitleCase || !isWordCapitalCase(word)) && trustCaps && isAcronym(word))
+            || ((!inTitleCase || !isWordCapitalCase(word, false)) && trustCaps && isAcronym(word))
             || (!inTitleCase && trustCaps && word.length === 1)
-            || (!inTitleCase && isWordCapitalCase(word))
+            || (!inTitleCase && isWordCapitalCase(word, true))
             || (isCustom && isWordCustomCapitalization(word))
             || (!isAllCaps(word) && isWordCustomCapitalization(word))
             || (!isGreek && await greekLetterAllowed(word))) {
@@ -270,19 +270,29 @@ export async function toCapitalizeCase(str: string, isCustom: boolean): Promise<
 }
 
 export function isInTitleCase(words: string[]): boolean {
-    let count = 0;
-    let ignored = 0;
+    let first = true;
+    let capitalCount = 0;
     for (const word of words) {
-        if (isWordCapitalCase(word)) {
-            count++;
-        } else if (!isWordAllLower(word) ||
-                listHasWord(titleCaseDetectionNotCapitalized, word.toLowerCase())) {
-            ignored++;
+        const isCaptial = isFirstLetterCapital(word);
+
+        if (!first 
+                && !isCaptial
+                && !doesStartWithNonLetter(word)
+                && !isAllCaps(word)
+                && !listHasWord(titleCaseNotCapitalized, word)
+                && word.length > 3) {
+            // At least one extra word is lower case, probably not title case
+            return false;
         }
+
+        if (isCaptial) {
+            capitalCount++;
+        }
+
+        first = false;
     }
-    
-    const length = words.length - ignored;
-    return (length > 4 && count >= Math.min(length - 1, length * 0.9)) || count >= length;
+
+    return capitalCount > 0;
 }
 
 function shouldTrustCaps(mostlyAllCaps: boolean, words: string[], index: number): boolean {
@@ -335,8 +345,8 @@ export async function capitalizeFirstLetter(word: string, isTurkiq: boolean): Pr
     return result.join("");
 }
 
-function isWordCapitalCase(word: string): boolean {
-    const regex = /^[^\p{L}]*[\p{Lu}][^\p{Lu}]+$/u;
+function isWordCapitalCase(word: string, allowSingleWords: boolean): boolean {
+    const regex = allowSingleWords ? /^[^\p{L}]*[\p{Lu}][^\p{Lu}]*$/u : /^[^\p{L}]*[\p{Lu}][^\p{Lu}]+$/u;
     const compoundSections = word.split(/[-/]/);
     return !!word.match(regex) || (compoundSections.length > 1 && word.split(/[-/]/).every((w) => !!w.match(regex)));
 }
@@ -371,12 +381,12 @@ function isNumberThenLetter(word: string): boolean {
     return !!word.match(/^[「〈《【〔⦗『〖〘<({["'‘]*[0-9]+\p{L}[〙〗』⦘〕】》〉」)}\]"']*/u);
 }
 
-function isYear(word: string): boolean {
-    return !!word.match(/^[「〈《【〔⦗『〖〘<({["'‘]*[0-9]{2,4}'?s[〙〗』⦘〕】》〉」)}\]"']*$/);
+function doesStartWithNonLetter(word: string): boolean {
+    return !!word.match(/^[^\p{L}]/u);
 }
 
-function isWordAllLower(word: string): boolean {
-    return !!word.match(/^[\p{Ll}]+$/u);
+function isYear(word: string): boolean {
+    return !!word.match(/^[「〈《【〔⦗『〖〘<({["'‘]*[0-9]{2,4}'?s[〙〗』⦘〕】》〉」)}\]"']*$/);
 }
 
 function isFirstLetterCapital(word: string): boolean {
@@ -398,6 +408,11 @@ function forceKeepFormatting(word: string, ignorePunctuation = true): boolean {
 
     // Allow hashtags
     if (!isAllCaps(word) && word.startsWith("#")) {
+        return true;
+    }
+
+    // Don't capitalize subreddits
+    if (word.startsWith("r/")) {
         return true;
     }
 
@@ -670,14 +685,14 @@ export async function localizeHtmlPageWithFormatting(): Promise<void> {
     const localizedTitle = await getLocalizedMessageWithFormatting(document.title);
     if (localizedTitle) document.title = localizedTitle;
 
-    const body = document.querySelector(".editTogetherPageBody");
+    const body = document.querySelector(".sponsorBlockPageBody");
     const localizedMessage = await getLocalizedMessageWithFormatting(body!.innerHTML.toString());
     if (localizedMessage) body!.innerHTML = localizedMessage;
 }
 
 async function getLocalizedMessageWithFormatting(text: string): Promise<string | false> {
     const promises: Promise<string>[] = [];
-    text.replace(/__MSG_(\w+)__|(EditTogether|Ajay Ramachandran)/g, (match, v1: string, v2) => {
+    text.replace(/__MSG_(\w+)__|(DeArrow|Ajay Ramachandran)/g, (match, v1: string, v2) => {
         if (v2) {
             promises.push(formatTitle(v2, false, null));
         } else if (v1) {
@@ -703,7 +718,7 @@ async function getLocalizedMessageWithFormatting(text: string): Promise<string |
     const results = await Promise.all(promises);
 
     let count = 0;
-    const valNewH = text.replace(/__MSG_(\w+)__|(EditTogether|Ajay Ramachandran)/g, () => {
+    const valNewH = text.replace(/__MSG_(\w+)__|(DeArrow|Ajay Ramachandran)/g, () => {
         return results[count++];
     });
 

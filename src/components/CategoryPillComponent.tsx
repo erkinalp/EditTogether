@@ -8,8 +8,9 @@ import { downvoteButtonColor, SkipNoticeAction } from "../utils/noticeUtils";
 import { VoteResponse } from "../messageTypes";
 import { AnimationUtils } from "../../maze-utils/src/animationUtils";
 import { Tooltip } from "../render/Tooltip";
-import { formatJSErrorMessage, getLongErrorMessage } from "../utils/errorFormat";
-import { logRequest } from "../utils/requestLogging";
+import { formatJSErrorMessage, getLongErrorMessage } from "../../maze-utils/src/formating";
+import { logRequest } from "../../maze-utils/src/background-request-proxy";
+
 export interface CategoryPillProps {
     vote: (type: number, UUID: SegmentUUID, category?: Category) => Promise<VoteResponse>;
     showTextByDefault: boolean;
@@ -59,7 +60,7 @@ class CategoryPillComponent extends React.Component<CategoryPillProps, CategoryP
                 
                 <span className="sponsorBlockCategoryPillTitleSection">
                     <img className="sponsorSkipLogo sponsorSkipObject"
-                        src={chrome.runtime.getURL("icons/pencil.svg")}>
+                        src={chrome.runtime.getURL(Config.config.prideTheme ? "icons/sb-pride.png" : "icons/IconSponsorBlocker256px.png")}>
                     </img>
 
                     {

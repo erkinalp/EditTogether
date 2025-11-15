@@ -3,7 +3,6 @@ import {
     ActionType,
     Category,
     CategorySkipOption,
-    ChannelIDInfo,
     ChannelIDStatus,
     ContentContainer,
     ScheduledTime,
@@ -34,8 +33,7 @@ import { importTimes } from "./utils/exporter";
 import { ChapterVote } from "./render/ChapterVote";
 import { openWarningDialog } from "./utils/warnings";
 import { extensionUserAgent, isFirefoxOrSafari, waitFor } from "../maze-utils/src";
-import { getErrorMessage, getFormattedTime } from "../maze-utils/src/formating";
-import { formatJSErrorMessage, getLongErrorMessage } from "./utils/errorFormat";
+import { formatJSErrorMessage, getFormattedTime, getLongErrorMessage } from "../maze-utils/src/formating";
 import { getChannelIDInfo, getVideo, getIsAdPlaying, getIsLivePremiere, setIsAdPlaying, checkVideoIDChange, getVideoID, getYouTubeVideoID, setupVideoModule, checkIfNewVideoID, isOnInvidious, isOnMobileYouTube, isOnYouTubeMusic, isOnYTTV, getLastNonInlineVideoID, triggerVideoIDChange, triggerVideoElementChange, getIsInline, getCurrentTime, setCurrentTime, getVideoDuration, verifyCurrentTime, waitForVideo } from "../maze-utils/src/video";
 import { Keybind, StorageChangesObject, isSafari, keybindEquals, keybindToString } from "../maze-utils/src/config";
 import { findValidElement } from "../maze-utils/src/dom"
@@ -47,13 +45,14 @@ import * as documentScript from "../dist/js/document.js";
 import { isVorapisInstalled, runCompatibilityChecks } from "./utils/compatibility";
 import { cleanPage } from "./utils/pageCleaner";
 import { addCleanupListener } from "../maze-utils/src/cleanup";
-
 import { asyncRequestToServer } from "./utils/requests";
 import { isMobileControlsOpen } from "./utils/mobileUtils";
 import { defaultPreviewTime } from "./utils/constants";
 import { onVideoPage } from "../maze-utils/src/pageInfo";
 import { getSegmentsForVideo } from "./utils/segmentData";
 import { getCategoryDefaultSelection, getCategorySelection } from "./utils/skipRule";
+import { getSkipProfileBool, getSkipProfileIDForTab, hideTooShortSegments, setCurrentTabSkipProfile } from "./utils/skipProfiles";
+import { FetchResponse, logRequest } from "../maze-utils/src/background-request-proxy";
 
 cleanPage();
 
@@ -147,9 +146,6 @@ let lastCheckVideoTime = -1;
 // To determine if a video resolution change is happening
 let firstPlay = true;
 
-//is this channel whitelised from getting sponsors skipped
-let channelWhitelisted = false;
-
 let previewBar: PreviewBar = null;
 // Skip to highlight button
 let skipButtonControlBar: SkipButtonControlBar = null;
@@ -174,7 +170,7 @@ let popupInitialised = false;
 
 let submissionNotice: SubmissionNotice = null;
 
-let lastResponseStatus: number;
+let lastResponseStatus: number | Error | string;
 
 // Contains all of the functions and variables needed by the skip notice
 const skipNoticeContentContainer: ContentContainer = () => ({
@@ -228,7 +224,9 @@ function messageListener(request: Message, sender: unknown, sendResponse: (respo
                 onMobileYouTube: isOnMobileYouTube(),
                 videoID: getVideoID(),
                 loopedChapter: loopedChapter?.UUID,
-                channelWhitelisted
+                channelID: getChannelIDInfo().id,
+                channelAuthor: getChannelIDInfo().author,
+                currentTabSkipProfileID: getSkipProfileIDForTab()
             });
 
             if (!request.updating && popupInitialised && document.getElementById("sponsorBlockPopupContainer") != null) {
@@ -243,11 +241,6 @@ function messageListener(request: Message, sender: unknown, sendResponse: (respo
                 channelID: getChannelIDInfo().id,
                 isYTTV: (document.location.host === "tv.youtube.com")
             });
-
-            break;
-        case "whitelistChange":
-            channelWhitelisted = request.value;
-            sponsorsLookup();
 
             break;
         case "submitTimes":
@@ -356,6 +349,10 @@ function messageListener(request: Message, sender: unknown, sendResponse: (respo
                 warn: window["SBLogs"].warn
             });
             break;
+        case "setCurrentTabSkipProfile":
+            setCurrentTabSkipProfile(request.configID);
+            channelIDChange();
+            break;
     }
 
     sendResponse({});
@@ -373,7 +370,7 @@ function contentConfigUpdateListener(changes: StorageChangesObject) {
                 updateVisibilityOfPlayerControlsButton()
                 break;
             case "categorySelections":
-                sponsorsLookup(true, true);
+                channelIDChange();
                 break;
             case "barTypes":
                 setCategoryColorCSSVariables();
@@ -385,9 +382,27 @@ function contentConfigUpdateListener(changes: StorageChangesObject) {
         }
     }
 }
+function contentLocalConfigUpdateListener(changes: StorageChangesObject) {
+    for (const key in changes) {
+        switch(key) {
+            case "channelSkipProfileIDs":
+            case "skipProfiles":
+            case "skipProfileTemp":
+            case "skipRules":
+                channelIDChange();
+                break;
+        }
+    }
+}
 
-if (!Config.configSyncListeners.includes(contentConfigUpdateListener)) {
-    Config.configSyncListeners.push(contentConfigUpdateListener);
+if (!window.location.href.includes("youtube.com/live_chat")) {
+    if (!Config.configSyncListeners.includes(contentConfigUpdateListener)) {
+        Config.configSyncListeners.push(contentConfigUpdateListener);
+    }
+
+    if (!Config.configLocalListeners.includes(contentLocalConfigUpdateListener)) {
+        Config.configLocalListeners.push(contentLocalConfigUpdateListener);
+    }
 }
 
 function resetValues() {
@@ -404,7 +419,6 @@ function resetValues() {
     shownSegmentFailedToFetchWarning = false;
 
     videoInfo = null;
-    channelWhitelisted = false;
     lockedCategories = [];
 
     //empty the preview bar
@@ -435,8 +449,6 @@ function resetValues() {
         upcomingNotice.close();
         upcomingNotice = null;
     }
-
-
 }
 
 function videoIDChange(): void {
@@ -466,7 +478,8 @@ function videoIDChange(): void {
     chrome.runtime.sendMessage({
         message: "videoChanged",
         videoID: getVideoID(),
-        whitelisted: channelWhitelisted
+        channelID: getChannelIDInfo().id,
+        channelAuthor: getChannelIDInfo().author
     });
 
     sponsorsLookup();
@@ -477,8 +490,6 @@ function videoIDChange(): void {
     // Clear unsubmitted segments from the previous video
     sponsorTimesSubmitting = [];
     updateSponsorTimesSubmitting();
-
-
 
     checkPreviewbarState();
 
@@ -683,7 +694,7 @@ async function startSponsorSchedule(includeIntersectingSegments = false, current
     logDebug(`Ready to start skipping: ${skipInfo.index} at ${currentTime}`);
     if (skipInfo.index === -1) return;
 
-    if (Config.config.disableSkipping || channelWhitelisted || (getChannelIDInfo().status === ChannelIDStatus.Fetching && Config.config.forceChannelCheck)){
+    if (Config.config.disableSkipping || (getChannelIDInfo().status === ChannelIDStatus.Fetching && Config.config.forceChannelCheck)){
         return;
     }
 
@@ -713,7 +724,10 @@ async function startSponsorSchedule(includeIntersectingSegments = false, current
         if (incorrectVideoCheck(videoID, currentSkip)) return;
         forceVideoTime ||= Math.max(getCurrentTime(), getVirtualTime());
 
-        if ((shouldSkip(currentSkip) || sponsorTimesSubmitting?.some((segment) => segment.segment === currentSkip.segment))) {
+        if ((shouldSkip(currentSkip)
+                || sponsorTimesSubmitting?.some((segment) => segment.segment === currentSkip.segment
+                    && segment.actionType !== ActionType.Chapter
+                    && segment.hidden === SponsorHideType.Visible))) {
             if (forceVideoTime >= skipTime[0] - skipBuffer && (forceVideoTime < skipTime[1] || skipTime[1] < skipTime[0])) {
                 skipToTime({
                     v: getVideo(),
@@ -1207,16 +1221,6 @@ async function sponsorsLookup(keepOldSubmissions = true, ignoreCache = false) {
             sponsorTimes = receivedSegments;
             existingChaptersImported = false;
 
-            // Hide all submissions smaller than the minimum duration
-            if (Config.config.minDuration !== 0) {
-                for (const segment of sponsorTimes) {
-                    const duration = segment.segment[1] - segment.segment[0];
-                    if (duration > 0 && duration < Config.config.minDuration) {
-                        segment.hidden = SponsorHideType.MinimumDuration;
-                    }
-                }
-            }
-
             if (keepOldSubmissions) {
                 for (const segment of oldSegments) {
                     const otherSegment = sponsorTimes.find((other) => segment.UUID === other.UUID);
@@ -1240,6 +1244,8 @@ async function sponsorsLookup(keepOldSubmissions = true, ignoreCache = false) {
                     }
                 }
             }
+
+            hideTooShortSegments(sponsorTimes);
 
             if (!getVideo()) {
                 //there is still no video here
@@ -1273,7 +1279,9 @@ function notifyPopupOfSegments(): void {
         onMobileYouTube: isOnMobileYouTube(),
         videoID: getVideoID(),
         loopedChapter: loopedChapter?.UUID,
-        channelWhitelisted
+        channelID: getChannelIDInfo().id,
+        channelAuthor: getChannelIDInfo().author,
+        currentTabSkipProfileID: getSkipProfileIDForTab()
     });
 }
 
@@ -1301,7 +1309,7 @@ function importExistingChapters(wait: boolean) {
                     }
                 }).catch(() => { importingChaptersWaiting = false; });
 
-            if (!Config.config.showAutogeneratedChapters) {
+            if (!getSkipProfileBool("showAutogeneratedChapters")) {
                 waitFor(() => hasAutogeneratedChapters(), wait ? 15000 : 0, 400).then(() => {
                     updateActiveSegment(getCurrentTime());
                 }).catch(() => { }); // eslint-disable-line @typescript-eslint/no-empty-function
@@ -1310,17 +1318,27 @@ function importExistingChapters(wait: boolean) {
     }
 }
 
+function handleExistingChaptersChannelChange() {
+    if (existingChaptersImported && hasAutogeneratedChapters() && !getSkipProfileBool("showAutogeneratedChapters")) {
+        sponsorTimes = sponsorTimes.filter((segment) => segment.source !== SponsorSourceType.Autogenerated);
+    }
+}
+
 async function lockedCategoriesLookup(): Promise<void> {
     const hashPrefix = (await getHash(getVideoID(), 1)).slice(0, 4);
-    const response = await asyncRequestToServer("GET", "/api/lockCategories/" + hashPrefix);
+    try {
+        const response = await asyncRequestToServer("GET", "/api/lockCategories/" + hashPrefix);
 
-    if (response.ok) {
-        try {
+        if (response.ok) {
             const categoriesResponse = JSON.parse(response.responseText).filter((lockInfo) => lockInfo.videoID === getVideoID())[0]?.categories;
             if (Array.isArray(categoriesResponse)) {
                 lockedCategories = categoriesResponse;
             }
-        } catch (e) { } //eslint-disable-line no-empty
+        } else if (response.status !== 404) {
+            logRequest(response, "SB", "locked categories")
+        }
+    } catch (e) {
+        console.warn(`[SB] Caught error while looking up category locks for hashprefix ${hashPrefix}`, e)
     }
 }
 
@@ -1375,13 +1393,6 @@ function startSkipScheduleCheckingForStartSponsors() {
             }
         }
 
-        const fullVideoSegment = sponsorTimes.filter((time) => time.actionType === ActionType.Full)[0];
-        if (fullVideoSegment) {
-            waitFor(() => categoryPill).then(() => {
-                categoryPill?.setSegment(fullVideoSegment);
-            });
-        }
-
         if (startingSegmentTime !== -1) {
             startSponsorSchedule(undefined, startingSegmentTime);
         } else {
@@ -1427,7 +1438,8 @@ function updatePreviewBar(): void {
     }
 
     sponsorTimesSubmitting.forEach((segment) => {
-        if (segment.actionType !== ActionType.Chapter || segment.segment.length > 1) {
+        if (segment.hidden === SponsorHideType.Visible
+                && (segment.actionType !== ActionType.Chapter || segment.segment.length > 1)) {
             previewBarSegments.push({
                 segment: segment.segment as [number, number],
                 category: segment.category,
@@ -1452,20 +1464,24 @@ function updatePreviewBar(): void {
     }
 }
 
-//checks if this channel is whitelisted, should be done only after the channelID has been loaded
-async function channelIDChange(channelIDInfo: ChannelIDInfo) {
-    const whitelistedChannels = Config.config.whitelistedChannels;
-
-    //see if this is a whitelisted channel
-    if (whitelistedChannels != undefined &&
-            channelIDInfo.status === ChannelIDStatus.Found && whitelistedChannels.includes(channelIDInfo.id)) {
-        channelWhitelisted = true;
+function updateCategoryPill() {
+    const fullVideoSegment = sponsorTimes.filter((time) => time.actionType === ActionType.Full)[0];
+    if (fullVideoSegment && getSkipProfileBool("fullVideoSegments")) {
+        categoryPill?.setSegment(fullVideoSegment);
+    } else {
+        categoryPill?.setVisibility(false);
     }
+}
 
+//checks if this channel is whitelisted, should be done only after the channelID has been loaded
+async function channelIDChange() {
     // check if the start of segments were missed
     if (Config.config.forceChannelCheck && sponsorTimes?.length > 0) startSkipScheduleCheckingForStartSponsors();
 
+    hideTooShortSegments(sponsorTimes);
+    handleExistingChaptersChannelChange();
     updatePreviewBar();
+    updateCategoryPill();
     notifyPopupOfSegments();
 }
 
@@ -1723,8 +1739,6 @@ function sendTelemetryAndCount(skippingSegments: SponsorTime[], secondsSkipped: 
 
             if (fullSkip) asyncRequestToServer("POST", "/api/viewedVideoSponsorTime?UUID=" + segment.UUID + "&videoID=" + getVideoID())
                 .then(r => {
-                    // eslint-disable-next-line @typescript-eslint/no-var-requires
-                    const { logRequest } = require("./utils/requestLogging");
                     if (!r.ok) logRequest(r, "SB", "segment skip log");
                 })
                 .catch(e => console.warn("[SB] Caught error while attempting to log segment skip", e));
@@ -1899,6 +1913,7 @@ function createButton(baseID: string, title: string, callback: () => void, image
     newButton.id = baseID + "Button";
     newButton.classList.add("playerButton");
     newButton.classList.add("ytp-button");
+    if (Config.config.prideTheme) newButton.classList.add("prideTheme");
     if (isOnYTTV()) {
         // Some style needs to be set here, but the numbers don't matter 
         newButton.setAttribute("style", "width: 40px; height: 40px");
@@ -1937,18 +1952,20 @@ function shouldAutoSkip(segment: SponsorTime): boolean {
         return false;
     }
 
-    return (!Config.config.manualSkipOnFullVideo || !sponsorTimes?.some((s) => s.category === segment.category && s.actionType === ActionType.Full))
+    return (!getSkipProfileBool("manualSkipOnFullVideo") || !sponsorTimes?.some((s) => s.category === segment.category && s.actionType === ActionType.Full))
         && (getCategorySelection(segment)?.option === CategorySkipOption.AutoSkip ||
-            (Config.config.autoSkipOnMusicVideos && canSkipNonMusic && sponsorTimes?.some((s) => s.category === "music_offtopic")
+            (getSkipProfileBool("autoSkipOnMusicVideos") && canSkipNonMusic
+                && sponsorTimes?.some((s) => s.category === "music_offtopic" && getCategorySelection(segment)?.option === CategorySkipOption.AutoSkip)
                 && segment.actionType === ActionType.Skip)
             || sponsorTimesSubmitting.some((s) => s.segment === segment.segment))
         || isLoopedChapter(segment);
 }
 
 function shouldSkip(segment: SponsorTime): boolean {
-    return (segment.actionType !== ActionType.Full
+    return segment.hidden === SponsorHideType.Visible && (segment.actionType !== ActionType.Full
             && getCategorySelection(segment)?.option > CategorySkipOption.ShowOverlay)
-            || (Config.config.autoSkipOnMusicVideos && sponsorTimes?.some((s) => s.category === "music_offtopic")
+            || (getSkipProfileBool("autoSkipOnMusicVideos")
+                && sponsorTimes?.some((s) => s.category === "music_offtopic" && getCategorySelection(segment)?.option === CategorySkipOption.AutoSkip)
                 && segment.actionType === ActionType.Skip)
             || isLoopedChapter(segment);
 }
@@ -1963,11 +1980,11 @@ async function createButtons(): Promise<void> {
     controls = await utils.wait(getControls).catch();
 
     // Add button if does not already exist in html
-    createButton("startSegment", "sponsorStart", () => startOrEndTimingNewSegment(), "PlayerStartIconEditTogether.svg");
-    createButton("cancelSegment", "sponsorCancel", () => cancelCreatingSegment(), "PlayerCancelSegmentIconEditTogether.svg");
-    createButton("delete", "clearTimes", () => clearSponsorTimes(), "PlayerDeleteIconEditTogether.svg");
-    createButton("submit", "OpenSubmissionMenu", () => openSubmissionMenu(), "PlayerUploadIconEditTogether.svg");
-    createButton("info", "openPopup", () => openInfoMenu(), "PlayerInfoIconEditTogether.svg");
+    createButton("startSegment", "sponsorStart", () => startOrEndTimingNewSegment(), "PlayerStartIconSponsorBlocker.svg");
+    createButton("cancelSegment", "sponsorCancel", () => cancelCreatingSegment(), "PlayerCancelSegmentIconSponsorBlocker.svg");
+    createButton("delete", "clearTimes", () => clearSponsorTimes(), "PlayerDeleteIconSponsorBlocker.svg");
+    createButton("submit", "OpenSubmissionMenu", () => openSubmissionMenu(), "PlayerUploadIconSponsorBlocker.svg");
+    createButton("info", "openPopup", () => openInfoMenu(), "PlayerInfoIconSponsorBlocker.svg");
 
     const controlsContainer = getControls();
     if (Config.config.autoHideInfoButton && !isOnInvidious() && controlsContainer
@@ -2024,10 +2041,10 @@ function updateEditButtonsOnPlayer(): void {
 
     if (buttonsEnabled) {
         if (creatingSegment) {
-            playerButtons.startSegment.image.src = chrome.runtime.getURL("icons/PlayerStopIconEditTogether.svg");
+            playerButtons.startSegment.image.src = chrome.runtime.getURL("icons/PlayerStopIconSponsorBlocker.svg");
             playerButtons.startSegment.button.setAttribute("title", chrome.i18n.getMessage("sponsorEnd"));
         } else {
-            playerButtons.startSegment.image.src = chrome.runtime.getURL("icons/PlayerStartIconEditTogether.svg");
+            playerButtons.startSegment.image.src = chrome.runtime.getURL("icons/PlayerStartIconSponsorBlocker.svg");
             playerButtons.startSegment.button.setAttribute("title", chrome.i18n.getMessage("sponsorStart"));
         }
     }
@@ -2044,9 +2061,11 @@ function updateEditButtonsOnPlayer(): void {
 function getRealCurrentTime(): number {
     // Used to check if replay button
     const playButtonSVGData = document.querySelector(".ytp-play-button")?.querySelector(".ytp-svg-fill")?.getAttribute("d");
+    const playButtonSVGDataNew = document.querySelector(".ytp-play-button")?.querySelector("path")?.getAttribute("d");
     const replaceSVGData = "M 18,11 V 7 l -5,5 5,5 v -4 c 3.3,0 6,2.7 6,6 0,3.3 -2.7,6 -6,6 -3.3,0 -6,-2.7 -6,-6 h -2 c 0,4.4 3.6,8 8,8 4.4,0 8,-3.6 8,-8 0,-4.4 -3.6,-8 -8,-8 z";
+    const replaceSVGDataNew = "M11.29 2.92C14.85 1.33 18.87 1.06 22";
 
-    if (playButtonSVGData === replaceSVGData) {
+    if (playButtonSVGData === replaceSVGData || playButtonSVGDataNew.startsWith(replaceSVGDataNew)) {
         // At the end of the video
         return getVideoDuration();
     } else {
@@ -2141,6 +2160,7 @@ function updateSponsorTimesSubmitting(getFromConfig = true) {
                 category: segmentTime.category,
                 actionType: segmentTime.actionType,
                 description: segmentTime.description,
+                hidden: segmentTime.hidden,
                 source: segmentTime.source
             });
         }
@@ -2286,8 +2306,8 @@ function clearSponsorTimes() {
 async function vote(type: number, UUID: SegmentUUID, category?: Category, skipNotice?: SkipNoticeComponent): Promise<VoteResponse> {
     if (skipNotice !== null && skipNotice !== undefined) {
         //add loading info
-        skipNotice.addVoteButtonInfo.bind(skipNotice)(chrome.i18n.getMessage("Loading"))
-        skipNotice.setNoticeInfoMessage.bind(skipNotice)();
+        skipNotice.addVoteButtonInfo(chrome.i18n.getMessage("Loading"))
+        skipNotice.setNoticeInfoMessage();
     }
 
     const response = await voteAsync(type, UUID, category);
@@ -2295,19 +2315,20 @@ async function vote(type: number, UUID: SegmentUUID, category?: Category, skipNo
         //see if it was a success or failure
         if (skipNotice != null) {
             if ("error" in response) {
-                skipNotice.setNoticeInfoMessage.bind(skipNotice)(formatJSErrorMessage(response.error as unknown as Error));
-                skipNotice.resetVoteButtonInfo.bind(skipNotice)();
+                skipNotice.setNoticeInfoMessage(formatJSErrorMessage(response.error))
+                skipNotice.resetVoteButtonInfo();
             } else if (response.ok || response.status === 429) {
                 //success (treat rate limits as a success)
-                skipNotice.afterVote.bind(skipNotice)(utils.getSponsorTimeFromUUID(sponsorTimes, UUID), type, category);
+                skipNotice.afterVote(utils.getSponsorTimeFromUUID(sponsorTimes, UUID), type, category);
             } else {
+                logRequest({headers: null, ...response}, "SB", "vote on segment");
                 if (response.status === 403 && response.responseText.startsWith("Vote rejected due to a tip from a moderator.")) {
                     openWarningDialog(skipNoticeContentContainer);
                 } else {
-                    skipNotice.setNoticeInfoMessage.bind(skipNotice)(getLongErrorMessage(response.status, response.responseText));
+                    skipNotice.setNoticeInfoMessage(getLongErrorMessage(response.status, response.responseText))
                 }
 
-                skipNotice.resetVoteButtonInfo.bind(skipNotice)();
+                skipNotice.resetVoteButtonInfo();
             }
         }
     }
@@ -2344,12 +2365,8 @@ async function voteAsync(type: number, UUID: SegmentUUID, category?: Category): 
             category: category,
             videoID: getVideoID()
         }, (response) => {
-            if (!response || "error" in response) {
-                resolve(response);
-                return;
-            }
-
-            if (response.ok || response.status === 429) {
+            if (response.ok === true) {
+                // Change the sponsor locally
                 const segment = utils.getSponsorTimeFromUUID(sponsorTimes, UUID);
                 if (segment) {
                     if (type === 0) {
@@ -2450,7 +2467,7 @@ async function sendSubmitMessage(): Promise<boolean> {
     }
 
     // Add loading animation
-    playerButtons.submit.image.src = chrome.runtime.getURL("icons/PlayerUploadIconEditTogether.svg");
+    playerButtons.submit.image.src = chrome.runtime.getURL("icons/PlayerUploadIconSponsorBlocker.svg");
     const stopAnimation = AnimationUtils.applyLoadingAnimation(playerButtons.submit.button, 1, () => updateEditButtonsOnPlayer());
 
     //check if a sponsor exceeds the duration of the video
@@ -2477,13 +2494,23 @@ async function sendSubmitMessage(): Promise<boolean> {
         }
     }
 
-    const response = await asyncRequestToServer("POST", "/api/skipSegments", {
-        videoID: getVideoID(),
-        userID: Config.config.userID,
-        segments: sponsorTimesSubmitting,
-        videoDuration: getVideoDuration(),
-        userAgent: extensionUserAgent(),
-    });
+    let response: FetchResponse;
+    try {
+        response = await asyncRequestToServer("POST", "/api/skipSegments", {
+            videoID: getVideoID(),
+            userID: Config.config.userID,
+            segments: sponsorTimesSubmitting,
+            videoDuration: getVideoDuration(),
+            userAgent: extensionUserAgent(),
+        });
+    } catch (e) {
+        console.error("[SB] Caught error while attempting to submit segments", e);
+        // Show that the upload failed
+        playerButtons.submit.button.style.animation = "unset";
+        playerButtons.submit.image.src = chrome.runtime.getURL("icons/PlayerUploadFailedIconSponsorBlocker.svg");
+        alert(formatJSErrorMessage(e));
+        return false;
+    }
 
     if (response.status === 200) {
         stopAnimation();
@@ -2517,22 +2544,19 @@ async function sendSubmitMessage(): Promise<boolean> {
         sponsorTimesSubmitting = [];
 
         updatePreviewBar();
-
-        const fullVideoSegment = sponsorTimes.filter((time) => time.actionType === ActionType.Full)[0];
-        if (fullVideoSegment) {
-            categoryPill?.setSegment(fullVideoSegment);
-        }
+        updateCategoryPill();
 
         return true;
     } else {
         // Show that the upload failed
         playerButtons.submit.button.style.animation = "unset";
-        playerButtons.submit.image.src = chrome.runtime.getURL("icons/PlayerUploadFailedIconEditTogether.svg");
+        playerButtons.submit.image.src = chrome.runtime.getURL("icons/PlayerUploadFailedIconSponsorBlocker.svg");
 
         if (response.status === 403 && response.responseText.startsWith("Submission rejected due to a tip from a moderator.")) {
             openWarningDialog(skipNoticeContentContainer);
         } else {
-            alert(getErrorMessage(response.status, response.responseText));
+            logRequest(response, "SB", "segment submission");
+            alert(getLongErrorMessage(response.status, response.responseText));
         }
     }
 

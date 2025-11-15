@@ -1,42 +1,62 @@
 import * as React from "react";
-import Config, { TitleFormatting } from "../config/config";
-import { sendRequestToServer } from "../utils/requests";
 import { getHash } from "../../maze-utils/src/hash";
-import { getErrorMessage } from "../../maze-utils/src/formating";
+import { formatJSErrorMessage, getShortErrorMessage } from "../../maze-utils/src/formating";
+import Config from "../config";
+import { TitleFormatting } from "../config/config";
+import { asyncRequestToServer } from "../utils/requests";
 import PencilIcon from "../svg-icons/pencilIcon";
 import ClipboardIcon from "../svg-icons/clipboardIcon";
 import CheckIcon from "../svg-icons/checkIcon";
-import { FormattedText } from "./FormattedTextComponent";
+import { showDonationLink } from "../utils/configUtils";
+import { FetchResponse, logRequest } from "../../maze-utils/src/background-request-proxy";
 
 interface YourWorkComponentProps {
     titleFormatting?: TitleFormatting;
 }
 
-export const YourWorkComponent = ({ titleFormatting }: YourWorkComponentProps) => {
+export const YourWorkComponent = ({ titleFormatting: _titleFormatting }: YourWorkComponentProps = {}) => {
+    void _titleFormatting; // Keep prop for upstream compatibility
     const [isSettingUsername, setIsSettingUsername] = React.useState(false);
     const [username, setUsername] = React.useState("");
     const [newUsername, setNewUsername] = React.useState("");
     const [usernameSubmissionStatus, setUsernameSubmissionStatus] = React.useState("");
-    const [titleSubmissionCount, setTitleSubmissionCount] = React.useState("");
-    const [thumbnailSubmissionCount, setThumbnailSubmissionCount] = React.useState("");
-    const [casualSubmissionCount, setCasualSubmissionCount] = React.useState("");
+    const [submissionCount, setSubmissionCount] = React.useState("");
+    const [viewCount, setViewCount] = React.useState(0);
+    const [minutesSaved, setMinutesSaved] = React.useState(0);
+    const [showDonateMessage, setShowDonateMessage] = React.useState(false);
 
     React.useEffect(() => {
         (async () => {
-            const values = ["userName", "titleSubmissionCount", "thumbnailSubmissionCount", "casualSubmissionCount", "vip"];
-            const result = await sendRequestToServer("GET", "/api/userInfo", {
-                publicUserID: await getHash(Config.config!.userID!),
-                values
-            });
+            const values = ["userName", "viewCount", "minutesSaved", "vip", "permissions", "segmentCount"];
+            let result: FetchResponse;
+            try {
+                result = await asyncRequestToServer("GET", "/api/userInfo", {
+                    publicUserID: await getHash(Config.config!.userID!),
+                    values
+                });
+            } catch (e) {
+                console.error("[SB] Caught error while fetching user info", e);
+                return
+            }
 
             if (result.ok) {
                 const userInfo = JSON.parse(result.responseText);
                 setUsername(userInfo.userName);
-                setTitleSubmissionCount(userInfo.titleSubmissionCount);
-                setThumbnailSubmissionCount(userInfo.thumbnailSubmissionCount);
-                setCasualSubmissionCount(userInfo.casualSubmissionCount);
+                setSubmissionCount(Math.max(Config.config.sponsorTimesContributed ?? 0, userInfo.segmentCount).toLocaleString());
+                setViewCount(userInfo.viewCount);
+                setMinutesSaved(userInfo.minutesSaved);
 
-                Config.config!.vip = userInfo.vip;
+                if (username === "sponege") {
+                    Config.config.prideTheme = true;
+                }
+
+                Config.config!.isVip = userInfo.vip;
+                Config.config!.permissions = userInfo.permissions;
+
+                setShowDonateMessage(Config.config.showDonationLink && Config.config.donateClicked <= 0 && Config.config.showPopupDonationCount < 5
+                    && viewCount < 50000 && !Config.config.isVip && Config.config.skipCount > 10 && showDonationLink());
+            } else {
+                logRequest(result, "SB", "user info");
             }
         })();
     }, []);
@@ -44,41 +64,35 @@ export const YourWorkComponent = ({ titleFormatting }: YourWorkComponentProps) =
     return (
         <div className="sbYourWorkBox">
             <h2 className="sbHeader" style={{ "padding": "8px 15px" }}>
-                <FormattedText
-                    langKey="yourWork"
-                    titleFormatting={titleFormatting}
-                />
+                {chrome.i18n.getMessage("yourWork")}
             </h2>
             <div className="sbYourWorkCols">
                 {/* Username */}
-                <div id="cbUsernameElement">
-                    <p className="u-mZ cb-grey-text">
-                        <FormattedText
-                            langKey="Username"
-                            titleFormatting={titleFormatting}
-                        />:
+                <div id="usernameElement">
+                    <p className="u-mZ grey-text">
+                        {chrome.i18n.getMessage("Username")}:
                         {/* loading/errors */}
                         <span id="setUsernameStatus" 
-                            className={`u-mZ cb-white-text${!usernameSubmissionStatus ? " hidden" : ""}`}>
+                            className={`u-mZ white-text${!usernameSubmissionStatus ? " hidden" : ""}`}>
                             {usernameSubmissionStatus}
                         </span>
                     </p>
                     <div id="setUsernameContainer" className={isSettingUsername ? " hidden" : ""}>
-                        <p id="usernameValue" className={Config.config!.casualMode ? " usernameWider" : ""}>{username}</p>
+                        <p id="usernameValue">{username}</p>
                         <button id="setUsernameButton" 
                             title={chrome.i18n.getMessage("setUsername")}
                             onClick={() => {
                                 setNewUsername(username);
                                 setIsSettingUsername(!isSettingUsername);
                             }}>
-                            <PencilIcon id="sbPopupIconEdit" className="cbPopupButton" />
+                            <PencilIcon id="sbPopupIconEdit" className="sbPopupButton" />
                         </button>
                         <button id="copyUserID" 
                             title={chrome.i18n.getMessage("copyPublicID")}
                             onClick={async () => {
                                 window.navigator.clipboard.writeText(await getHash(Config.config!.userID!));
                             }}>
-                            <ClipboardIcon id="sbPopupIconCopyUserID" className="cbPopupButton" />
+                            <ClipboardIcon id="sbPopupIconCopyUserID" className="sbPopupButton" />
                         </button>
                     </div>
                     <div id="setUsername" className={!isSettingUsername ? " hidden" : " SBExpanded"}>
@@ -92,114 +106,124 @@ export const YourWorkComponent = ({ titleFormatting }: YourWorkComponentProps) =
                             onClick={() => {
                                 if (newUsername.length > 0) {
                                     setUsernameSubmissionStatus(chrome.i18n.getMessage("Loading"));
-                                    sendRequestToServer("POST", `/api/setUsername?userID=${Config.config!.userID}&username=${newUsername}`)
+                                    asyncRequestToServer("POST", `/api/setUsername?userID=${Config.config!.userID}&username=${newUsername}`)
                                     .then((result) => {
                                         if (result.ok) {
                                             setUsernameSubmissionStatus("");
                                             setUsername(newUsername);
                                             setIsSettingUsername(!isSettingUsername);
                                         } else {
-                                            setUsernameSubmissionStatus(getErrorMessage(result.status, result.responseText));
+                                            logRequest(result, "SB", "username change");
+                                            setUsernameSubmissionStatus(getShortErrorMessage(result.status, result.responseText));
                                         }
                                     }).catch((e) => {
-                                        setUsernameSubmissionStatus(`${chrome.i18n.getMessage("Error")}: ${e}`);
+                                        console.error("[SB] Caught error while requesting a username change", e)
+                                        setUsernameSubmissionStatus(formatJSErrorMessage(e));
                                     });
                                 }
                             }}>
-                            <CheckIcon id="sbPopupIconCheck" className="cbPopupButton" />
+                            <CheckIcon id="sbPopupIconCheck" className="sbPopupButton" />
                         </button>
                     </div>
                 </div>
-                {
-                    !Config.config!.casualMode &&
-                    <SubmissionCounts
-                        isSettingUsername={isSettingUsername}
-                        titleSubmissionCount={titleSubmissionCount}
-                        thumbnailSubmissionCount={thumbnailSubmissionCount}
-                        titleFormatting={titleFormatting}
-                    />
-                }
+                <SubmissionCounts
+                    isSettingUsername={isSettingUsername}
+                    submissionCount={submissionCount}
+                />
             </div>
-            {
-                Config.config!.casualMode &&
-                <div className="sbYourWorkCols">
-                    <SubmissionCounts
-                        isSettingUsername={isSettingUsername}
-                        titleSubmissionCount={titleSubmissionCount}
-                        thumbnailSubmissionCount={thumbnailSubmissionCount}
-                        titleFormatting={titleFormatting}
-                    />
-                    <div id="sponsorTimesContributionsContainer" className={isSettingUsername ? " hidden" : ""}>
-                        <p className="u-mZ cb-grey-text">
-                            <FormattedText
-                                langKey="CasualVotes"
-                                titleFormatting={titleFormatting}
-                            />:
-                        </p>
-                        <p id="sponsorTimesContributionsDisplay" className="u-mZ">{casualSubmissionCount}</p>
-                    </div>
-                </div>
-            }
 
-            {
-                Config.config!.countReplacements && getReplacementsMessage()
-            }
+            <TimeSavedMessage
+                viewCount={viewCount}
+                minutesSaved={minutesSaved}
+            />
 
-            
+            {showDonateMessage && <DonateMessage onClose={() => {
+                setShowDonateMessage(false);
+                Config.config.showPopupDonationCount = 100;
+            }} />}
+
         </div>
     );
 };
 
-function SubmissionCounts(props: {isSettingUsername: boolean; titleSubmissionCount: string; thumbnailSubmissionCount: string; titleFormatting?: TitleFormatting}): JSX.Element {
+function SubmissionCounts(props: { isSettingUsername: boolean; submissionCount: string }): JSX.Element {
     return <>
         <div id="sponsorTimesContributionsContainer" className={props.isSettingUsername ? " hidden" : ""}>
-            <p className="u-mZ cb-grey-text">
-                <FormattedText
-                    langKey="Titles"
-                    titleFormatting={props.titleFormatting}
-                />:
+            <p className="u-mZ grey-text">
+                {chrome.i18n.getMessage("Submissions")}:
             </p>
-            <p id="sponsorTimesContributionsDisplay" className="u-mZ">{props.titleSubmissionCount}</p>
-        </div>
-        <div id="sponsorTimesContributionsContainer" className={props.isSettingUsername ? " hidden" : ""}>
-            <p className="u-mZ cb-grey-text">
-                <FormattedText
-                    langKey="Thumbnails"
-                    titleFormatting={props.titleFormatting}
-                />:
-            </p>
-            <p id="sponsorTimesContributionsDisplay" className="u-mZ">{props.thumbnailSubmissionCount}</p>
+            <p id="sponsorTimesContributionsDisplay" className="u-mZ">{props.submissionCount}</p>
         </div>
     </>
 }
 
-function getReplacementsMessage(): JSX.Element {
-    const messageParts = chrome.i18n.getMessage("editTogetherStatsMessage2")
-        .split("{titleAndThumbnailMessage}");
-
-    const titleParts = (Config.config!.titleReplacements === 1 ?
-        chrome.i18n.getMessage("editTogetherStatsMessageTitlePart") :
-        chrome.i18n.getMessage("editTogetherStatsMessageTitlesPart")).split("{titles}");
-    const thumbnailTemplate = (Config.config!.thumbnailReplacements === 1 ?
-        chrome.i18n.getMessage("editTogetherStatsMessageThumbnailPart") :
-        chrome.i18n.getMessage("editTogetherStatsMessageThumbnailsPart")).split("{thumbnails}");
-
+function TimeSavedMessage({ viewCount, minutesSaved }: { viewCount: number; minutesSaved: number }): JSX.Element {
     return (
-        <p id="editTogetherReplacementsDone" className="u-mZ sbStatsSentence">
-            {messageParts[0]}
-            {titleParts[0]}
-            <b>
-                {Config.config!.titleReplacements}
-            </b>
-            {titleParts[1]}
+        <>
+            {
+                viewCount > 0 &&
+                <p id="sponsorTimesViewsContainer" className="u-mZ sbStatsSentence">
+                    {chrome.i18n.getMessage("savedPeopleFrom")}
+                    <b>
+                        <span id="sponsorTimesViewsDisplay">{viewCount.toLocaleString()}</span>{" "}
+                    </b>
+                    <span id="sponsorTimesViewsDisplayEndWord">{viewCount !== 1 ? chrome.i18n.getMessage("Segments") : chrome.i18n.getMessage("Segment")}</span>
+                    <br />
+                    <span className="sbExtraInfo">
+                        {"("}{" "}
+                        <b>
+                            <span id="sponsorTimesOthersTimeSavedDisplay">{getFormattedHours(minutesSaved)}</span>{" "}
+                            <span id="sponsorTimesOthersTimeSavedEndWord">{minutesSaved !== 1 ? chrome.i18n.getMessage("minsLower") : chrome.i18n.getMessage("minLower")}</span>{" "}
+                        </b>
+                        <span>{chrome.i18n.getMessage("youHaveSavedTimeEnd")}</span>{" "}
+                        {" )"}
+                    </span>
+                </p>
+            }
+            <p id="sponsorTimesSkipsDoneContainer" className="u-mZ sbStatsSentence">
+                {chrome.i18n.getMessage("youHaveSkipped")}
+                <b>
+                    <span id="sponsorTimesSkipsDoneDisplay">{Config.config.skipCount}</span>{" "}
+                </b>
+                <span id="sponsorTimesSkipsDoneEndWord">{Config.config.skipCount > 1 ? chrome.i18n.getMessage("Segments") : chrome.i18n.getMessage("Segment")}</span>{" "}
+                <span className="sbExtraInfo">
+                    {"("}{" "}
+                    <b>
+                        <span id="sponsorTimeSavedDisplay">{getFormattedHours(Config.config.minutesSaved)}</span>{" "}
+                        <span id="sponsorTimeSavedEndWord">{Config.config.minutesSaved !== 1 ? chrome.i18n.getMessage("minsLower") : chrome.i18n.getMessage("minLower")}</span>{" "}
+                    </b>
+                    {")"}
+                </span>
+            </p>
+        </>
+    );
+}
 
-            {thumbnailTemplate[0]}
-            <b>
-                {Config.config!.thumbnailReplacements}
-            </b>
-            {thumbnailTemplate[1]}
+function DonateMessage(props: { onClose: () => void }): JSX.Element {
+    return (
+        <div id="sponsorTimesDonateContainer" style={{ alignItems: "center", justifyContent: "center", display: "flex" }}>
+            <img className="sbHeart" src="/icons/heart.svg" alt="Heart icon" />
+            <a id="sbConsiderDonateLink" href="https://sponsor.ajay.app/donate" target="_blank" rel="noreferrer" onClick={() => {
+                Config.config.donateClicked = Config.config.donateClicked + 1;
+            }}>
+                {chrome.i18n.getMessage("considerDonating")}
+            </a>
+            <img id="sbCloseDonate" src="/icons/close.png" alt={chrome.i18n.getMessage("closeIcon")} height="8" style={{ paddingLeft: "5px", cursor: "pointer" }} onClick={props.onClose} />
+        </div>
+    );
+}
 
-            {messageParts[1]}
-        </p>
-    )  
+/**
+ * Converts time in minutes to 2d 5h 25.1
+ * If less than 1 hour, just returns minutes
+ *
+ * @param {float} minutes
+ * @returns {string}
+ */
+function getFormattedHours(minutes) {
+    minutes = Math.round(minutes * 10) / 10;
+    const years = Math.floor(minutes / 525600); // Assumes 365.0 days in a year
+    const days = Math.floor(minutes / 1440) % 365;
+    const hours = Math.floor(minutes / 60) % 24;
+    return (years > 0 ? years + chrome.i18n.getMessage("yearAbbreviation") + " " : "") + (days > 0 ? days + chrome.i18n.getMessage("dayAbbreviation") + " " : "") + (hours > 0 ? hours + chrome.i18n.getMessage("hourAbbreviation") + " " : "") + (minutes % 60).toFixed(1);
 }

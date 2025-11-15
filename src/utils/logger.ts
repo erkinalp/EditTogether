@@ -1,17 +1,15 @@
 import * as CompileConfig from "../../config.json";
 
-export function logError(error: unknown): void {
-    console.error("[CB]", error);
+export function logError(...vals: unknown[]): void {
+    console.error("[CB]", ...vals);
 }
 
-export function logWarn(...text: unknown[]): void {
-    console.warn("[CB]", ...text);
+export function logWarn(...vals: unknown[]): void {
+    console.warn("[CB]", ...vals);
 }
 
-export function logDebug(...text: unknown[]): void {
-    if (CompileConfig.debug) {
-        console.log("[CB]", ...text);
-    }
+export function logDebug(...vals: unknown[]): void {
+    console.debug("[CB]", ...vals);
 }
 
 export function log(...text: unknown[]): void {

@@ -29,6 +29,14 @@ export type ThumbnailWithRandomTimeResult = ThumbnailResult & {
 };
 export type ThumbnailSubmission = CustomThumbnailSubmission | OriginalThumbnailSubmission;
 
+export function isCustomThumbnailSubmission(t: ThumbnailSubmission): t is CustomThumbnailSubmission {
+    return t.original === false;
+}
+
+export function isCustomThumbnailResult(t: ThumbnailResult | ThumbnailWithRandomTimeResult): t is CustomThumbnailResult {
+    return (t as any).original === false;
+}
+
 export interface Format {
     url: string;
     width: number;

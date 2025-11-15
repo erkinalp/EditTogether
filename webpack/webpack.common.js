@@ -96,7 +96,6 @@ module.exports = env => {
             popup: path.join(__dirname, srcDir + 'popup/popup.tsx'),
             background: path.join(__dirname, srcDir + 'background.ts'),
             content: path.join(__dirname, srcDir + 'content.ts'),
-            documentScriptInjector: path.join(__dirname, srcDir + 'documentScriptInjector.ts'),
             options: path.join(__dirname, srcDir + 'options.ts'),
             help: path.join(__dirname, srcDir + 'help.ts'),
             permissions: path.join(__dirname, srcDir + 'permissions.ts'),
@@ -133,9 +132,6 @@ module.exports = env => {
             // fork TS checker
             new ForkTsCheckerWebpackPlugin(),
             // exclude locale files in moment
-            new webpack.DefinePlugin({
-                LOAD_CLD: JSON.stringify(["firefox", "safari"].includes(env.browser))
-            }),
             new CopyPlugin({
                 patterns: [
                     {
@@ -193,7 +189,8 @@ module.exports = env => {
             new BuildManifest({
                 browser: env.browser,
                 pretty: env.mode === "production",
-                stream: env.stream
+                stream: env.stream,
+                autoupdate: env.autoupdate,
             }),
             new configDiffPlugin()
         ],

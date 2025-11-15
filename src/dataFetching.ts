@@ -1,7 +1,7 @@
 import { VideoID, getVideo, getVideoID, getYouTubeVideoID } from "../maze-utils/src/video";
-import { ThumbnailSubmission, ThumbnailWithRandomTimeResult, fetchVideoMetadata, isLiveSync } from "./thumbnails/thumbnailData";
+import { ThumbnailSubmission, ThumbnailWithRandomTimeResult, isCustomThumbnailResult } from "./thumbnails/thumbnailData";
 import { TitleResult, TitleSubmission } from "./titles/titleData";
-import { FetchResponse, FetchResponseBinary, sendBinaryRequestToCustomServer } from "../maze-utils/src/background-request-proxy";
+import { FetchResponse, FetchResponseBinary, logRequest, sendBinaryRequestToCustomServer } from "../maze-utils/src/background-request-proxy";
 import { BrandingLocation, BrandingResult, CasualVoteInfo, replaceCurrentVideoBranding, updateBrandingForVideo } from "./videoBranding/videoBranding";
 import { logError } from "./utils/logger";
 import { getHash } from "../maze-utils/src/hash";
@@ -17,9 +17,13 @@ import { updateSubmitButton } from "./video";
 import { sendRequestToServer } from "./utils/requests";
 import { thumbnailDataCache } from "./thumbnails/thumbnailDataCache";
 import { getAutoWarning } from "./submission/autoWarning";
+import { fetchVideoMetadata, isLiveSync } from "../maze-utils/src/metadataFetcher";
+import { getCurrentPageTitle } from "../maze-utils/src/elements";
+import { formatJSErrorMessage, getLongErrorMessage } from "../maze-utils/src/formating";
 
 interface VideoBrandingCacheRecord extends BrandingResult {
     lastUsed: number;
+    fullReply: boolean; // If false, it is just a reply from the thumbnail cache server
 }
 
 interface ActiveThumbnailCacheRequestInfo {
@@ -33,7 +37,7 @@ interface ActiveThumbnailCacheRequestInfo {
 const cache: Record<VideoID, VideoBrandingCacheRecord> = {};
 const cacheLimit = 10000;
 
-const activeRequests: Record<VideoID, Promise<Record<VideoID, BrandingResult> | null>> = {};
+const activeRequests: Record<VideoID, [Promise<Record<VideoID, BrandingResult> | null>, Promise<Record<VideoID, BrandingResult> | null>]> = {};
 const activeThumbnailCacheRequests: Record<VideoID, ActiveThumbnailCacheRequestInfo> = {};
 
 export async function getVideoThumbnailIncludingUnsubmitted(videoID: VideoID, brandingLocation?: BrandingLocation,
@@ -49,7 +53,7 @@ export async function getVideoThumbnailIncludingUnsubmitted(videoID: VideoID, br
         };
     }
 
-    const brandingData = await getVideoBranding(videoID, brandingLocation === BrandingLocation.Watch, brandingLocation);
+    const brandingData = await getVideoBranding(videoID, brandingLocation === BrandingLocation.Watch, false, brandingLocation);
     const result = brandingData?.thumbnails[0];
     if (!result || (!result.locked && result.votes < 0)) {
         if (returnRandomTime) {
@@ -149,7 +153,7 @@ export async function getVideoTitleIncludingUnsubmitted(videoID: VideoID, brandi
         };
     }
 
-    const result = (await getVideoBranding(videoID, brandingLocation === BrandingLocation.Watch, brandingLocation))?.titles[0];
+    const result = (await getVideoBranding(videoID, brandingLocation === BrandingLocation.Watch, false, brandingLocation))?.titles[0];
     if (!result || (!result.locked && result.votes < 0)) {
         return null;
     } else {
@@ -158,14 +162,14 @@ export async function getVideoTitleIncludingUnsubmitted(videoID: VideoID, brandi
 }
 
 export async function getVideoCasualInfo(videoID: VideoID, brandingLocation?: BrandingLocation): Promise<CasualVoteInfo[]> {
-    const result = (await getVideoBranding(videoID, brandingLocation === BrandingLocation.Watch, brandingLocation))?.casualVotes;
+    const result = (await getVideoBranding(videoID, brandingLocation === BrandingLocation.Watch, true, brandingLocation))?.casualVotes;
     return result ?? [];
 }
 
-export async function getVideoBranding(videoID: VideoID, queryByHash: boolean, brandingLocation?: BrandingLocation): Promise<VideoBrandingCacheRecord | null> {
+export async function getVideoBranding(videoID: VideoID, queryByHash: boolean, waitForFullReply: boolean, brandingLocation?: BrandingLocation): Promise<VideoBrandingCacheRecord | null> {
     const cachedValue = cache[videoID];
 
-    if (cachedValue) {
+    if (cachedValue && (!waitForFullReply || cachedValue.fullReply)) {
         return cachedValue;
     }
 
@@ -174,25 +178,30 @@ export async function getVideoBranding(videoID: VideoID, queryByHash: boolean, b
         queryByHash = true;
     }
 
-    activeRequests[videoID] ??= (async () => {
+    activeRequests[videoID] ??= (() => {
         const shouldGenerateBranding = Config.config!.thumbnailCacheUse === ThumbnailCacheOption.OnAllPages 
             || (brandingLocation !== BrandingLocation.Watch && Config.config!.thumbnailCacheUse !== ThumbnailCacheOption.Disable);
         const shouldGenerateNow = checkShouldGenerateNow(brandingLocation);
 
         const results = fetchBranding(queryByHash, videoID);
         const thumbnailCacheResults = shouldGenerateBranding ? 
-            fetchBrandingFromThumbnailCache(videoID, undefined, undefined, undefined, shouldGenerateNow) 
+            fetchBrandingFromThumbnailCache(videoID, undefined, undefined, undefined, shouldGenerateNow) //todo: this?
             : Promise.resolve(null);
 
-        const handleResults = (results: Record<VideoID, BrandingResult>) => {
+        const handleResults = (results: Record<VideoID, BrandingResult>, fullReply: boolean) => {
             for (const [key, result] of Object.entries(results)) {
+                if (result.titles.length > 0) {
+                    result.titles.forEach((title) => title.title = title.title.replace(/‹/ug, "<"));
+                }
+
                 cache[key] = {
                     titles: result.titles,
                     thumbnails: result.thumbnails,
                     randomTime: result.randomTime,
                     videoDuration: result.videoDuration,
                     casualVotes: result.casualVotes,
-                    lastUsed: key === videoID ? Date.now() : cache[key]?.lastUsed ?? 0
+                    lastUsed: key === videoID ? Date.now() : cache[key]?.lastUsed ?? 0,
+                    fullReply
                 };
             }
     
@@ -214,14 +223,19 @@ export async function getVideoBranding(videoID: VideoID, queryByHash: boolean, b
 
             if (results) {
                 const oldResults = cache[videoID];
-                handleResults(results);
+                handleResults(results, true);
 
-                if (results[videoID]) {
-                    const thumbnail = results[videoID].thumbnails[0];
-                    const title = results[videoID].titles[0];
+                const currentResult = results[videoID];
+                if (currentResult) {
+                    if (currentResult.titles.length > 0) {
+                        currentResult.titles.forEach((title) => title.title = title.title.replace(/‹/ug, "<"));
+                    }
 
-                    const timestamp = thumbnail && !thumbnail.original ? (thumbnail as any).timestamp 
-                        : await getTimestampFromRandomTime(videoID, results[videoID]);
+                    const thumbnail = currentResult.thumbnails[0];
+                    const title = currentResult.titles[0];
+
+                    const timestamp = thumbnail && isCustomThumbnailResult(thumbnail) ? thumbnail.timestamp 
+                        : await getTimestampFromRandomTime(videoID, currentResult);
 
                     // Fetch for a cached thumbnail if it is either not loaded yet, or has an out of date title
                     if (timestamp !== null
@@ -239,7 +253,8 @@ export async function getVideoBranding(videoID: VideoID, queryByHash: boolean, b
                         randomTime: null,
                         videoDuration: null,
                         casualVotes: [],
-                        lastUsed: Date.now()
+                        lastUsed: Date.now(),
+                        fullReply: true
                     };
                 }
 
@@ -258,25 +273,33 @@ export async function getVideoBranding(videoID: VideoID, queryByHash: boolean, b
                 if (await getThumbnailFallbackOption(videoID) === ThumbnailFallbackOption.RandomTime && !mainFetchDone) {
                     thumbnailCacheFetchDone = true;
 
-                    handleResults(results);
+                    handleResults(results, true);
                 }
             }
         }).catch(logError);
 
-        const fastest = await Promise.race([results, thumbnailCacheResults]);
-        if (fastest) {
-            return fastest;
-        } else {
-            // Always take results of thumbnail cache results is null
-            return results;
-        }
+        return [(async () => {
+            const fastest = await Promise.race([results, thumbnailCacheResults]);
+
+            if (fastest) {
+                return fastest;
+            } else {
+                // Always take results of thumbnail cache results is null
+                return results;
+            }
+        })(), results];
     })();
-    activeRequests[videoID].catch(() => delete activeRequests[videoID]);
+    activeRequests[videoID][0].catch(() => delete activeRequests[videoID]);
 
     try {
-        await Promise.race([timeoutPomise(Config.config?.fetchTimeout).catch(() => ({})), activeRequests[videoID]]);
+        const timeout = timeoutPomise(Config.config?.fetchTimeout).catch(() => ({}));
+        if (waitForFullReply) {
+            await Promise.race([timeout, activeRequests[videoID][1]]);
+        } else {
+            await Promise.race([timeout, activeRequests[videoID][0]]);
+        }
         delete activeRequests[videoID];
-    
+
         return cache[videoID];
     } catch (e) {
         logError(e);
@@ -295,13 +318,13 @@ function isOfficialTime(): boolean {
 async function fetchBranding(queryByHash: boolean, videoID: VideoID): Promise<Record<VideoID, BrandingResult> | null> {
     let results: Record<VideoID, BrandingResult> | null = null;
 
-    if (queryByHash) {
-        const request = await sendRequestToServer("GET", `/api/branding/${(await getHash(videoID, 1)).slice(0, 4)}`, {
-            fetchAll: true
-        });
+    try {
+        if (queryByHash) {
+            const request = await sendRequestToServer("GET", `/api/branding/${(await getHash(videoID, 1)).slice(0, 4)}`, {
+                fetchAll: true
+            });
 
-        if (request.ok || request.status === 404) {
-            try {
+            if (request.ok || request.status === 404) {
                 const json = JSON.parse(request.responseText);
                 if (!json[videoID]) {
                     // Add empty object
@@ -315,25 +338,25 @@ async function fetchBranding(queryByHash: boolean, videoID: VideoID): Promise<Re
                 }
 
                 results = json;
-            } catch (e) {
-                logError(`Getting video branding for ${videoID} failed: ${e}`);
+            } else {
+                logRequest(request, "CB", `video branding for ${videoID}`);
             }
-        }
-    } else {
-        const request = await sendRequestToServer("GET", "/api/branding", {
-            videoID,
-            fetchAll: true
-        });
+        } else {
+            const request = await sendRequestToServer("GET", "/api/branding", {
+                videoID,
+                fetchAll: true
+            });
 
-        if (request.ok || request.status === 404) {
-            try {
+            if (request.ok || request.status === 404) {
                 results = {
                     [videoID]: JSON.parse(request.responseText)
                 };
-            } catch (e) {
-                logError(`Getting video branding for ${videoID} failed: ${e}`);
+            } else {
+                logRequest(request, "CB", `video branding for ${videoID}`);
             }
         }
+    } catch (e) {
+        logError(`Getting video branding for ${videoID} failed:`, e);
     }
     return results;
 }
@@ -347,12 +370,12 @@ async function fetchBrandingFromThumbnailCache(videoID: VideoID, time?: number, 
             // Live videos have no backup, so try to generate it now
             const isLive = !!isLiveSync(videoID);
             const request = await sendRequestToThumbnailCache(videoID, time, title, officialImage, isLive, generateNow || isLive);
-    
+
             if (request.status === 200 && request.headers) {
                 try {
                     const timestamp = parseFloat(request.headers["x-timestamp"]);
                     const title = request.headers["x-title"];
-                    
+
                     if (activeThumbnailCacheRequests[videoID]
                         && activeThumbnailCacheRequests[videoID].shouldRerequest 
                         && activeThumbnailCacheRequests[videoID].time !== timestamp
@@ -361,7 +384,7 @@ async function fetchBrandingFromThumbnailCache(videoID: VideoID, time?: number, 
                         // Stop and refetch with the proper timestamp
                         return handleThumbnailCacheRefetch(videoID, time, generateNow, tries + 1);
                     }
-                        
+
                     if (isNaN(timestamp)) {
                         logError(`Getting video branding from cache server for ${videoID} failed: Timestamp is NaN`);
                         return null;
@@ -371,12 +394,12 @@ async function fetchBrandingFromThumbnailCache(videoID: VideoID, time?: number, 
                         // This check is done so late to make sure it doesn't slow down the original fetch
                         return null;
                     }
-    
+
                     setupPreRenderedThumbnail(videoID, timestamp, 
                         (request.responseBinary instanceof Blob) ? 
                             request.responseBinary : new Blob([new Uint8Array(request.responseBinary).buffer]));
                     delete activeThumbnailCacheRequests[videoID];
-    
+
                     return {
                         [videoID]: {
                             titles: title ? [{
@@ -399,7 +422,7 @@ async function fetchBrandingFromThumbnailCache(videoID: VideoID, time?: number, 
                         }
                     };
                 } catch (e) {
-                    logError(`Getting video branding for ${videoID} failed: ${e}`);
+                    logError(`Getting video branding for ${videoID} failed:`, e);
                 }
             } else if (activeThumbnailCacheRequests[videoID].shouldRerequest && tries < 2) {
                 const nextTry = await handleThumbnailCacheRefetch(videoID, time, generateNow, tries + 1);
@@ -408,13 +431,13 @@ async function fetchBrandingFromThumbnailCache(videoID: VideoID, time?: number, 
                 }
             }
         } catch (e) {
-            logError(`Error getting thumbnail cache data for ${e}`);
+            logError(`Error getting thumbnail cache data for ${videoID}:`, e);
         }
-    
+
         if (time !== undefined && generateNow === true) {
             const videoCache = thumbnailDataCache.setupCache(videoID);
             videoCache.thumbnailCachesFailed.add(time);
-    
+
             // If the thumbs already failured rendering, send nulls
             // Would be blank otherwise
             for (const failure of videoCache.failures) {
@@ -424,14 +447,14 @@ async function fetchBrandingFromThumbnailCache(videoID: VideoID, time?: number, 
                     }
                 }
             }
-    
+
             videoCache.failures = videoCache.failures.filter((failure) => failure.timestamp !== time);
         }
-        
+
         delete activeThumbnailCacheRequests[videoID];
         return null;
     })();
-    
+
     activeThumbnailCacheRequests[videoID] = {
         shouldRerequest: false,
         currentRequest: result,
@@ -507,7 +530,7 @@ export async function submitVideoBranding(videoID: VideoID, title: TitleSubmissi
         Config.config!.firstThumbnailSubmitted = true;
     }
 
-    const wasWarned = !!title && !!getAutoWarning(title.title, document.title || "");
+    const wasWarned = !!title && !!getAutoWarning(title.title, getCurrentPageTitle() || "");
 
     const result = await sendRequestToServer("POST", "/api/branding", {
         userID: Config.config!.userID,
@@ -532,7 +555,7 @@ export async function submitVideoCasualVote(videoID: VideoID, categories: string
         videoID,
         categories,
         downvote,
-        title: document.title,
+        title: getCurrentPageTitle(),
         userAgent: extensionUserAgent(),
     });
 
@@ -550,21 +573,22 @@ export async function submitVideoBrandingAndHandleErrors(title: TitleSubmission 
         return false;
     }
 
-    const result = await submitVideoBranding(getVideoID()!, title, thumbnail, downvote, actAsVip);
+    let result: FetchResponse;
+    try {
+        result = await submitVideoBranding(getVideoID()!, title, thumbnail, downvote, actAsVip);
+    } catch (e) {
+        logError("Caught error while submitting video branding", e);
+        alert(formatJSErrorMessage(e));
+        return false;
+    }
 
     if (result && result.ok) {
         replaceCurrentVideoBranding().catch(logError);
 
         return true;
     } else {
-        const text = result.responseText;
-
-        if (text.includes("<head>")) {
-            alert(chrome.i18n.getMessage("502"));
-        } else {
-            alert(text);
-        }
-
+        logRequest(result, "CB", "video branding submission");
+        alert(getLongErrorMessage(result.status, result.responseText));
         return false;
     }
 }
