@@ -889,6 +889,10 @@ svg {
     position: absolute;
 }
 
+#configurationName {
+    min-width: 200px;
+}
+
 .configurationInfo > *:not(:last-child) {
     margin-bottom: 10px;
 }
