@@ -17,7 +17,7 @@ interface ThumbnailVideoBase {
 }
 
 export type RenderedThumbnailVideo = ThumbnailVideoBase & {
-    blob: Blob;
+    blobUrl: string;
     rendered: true;
     fromThumbnailCache: boolean;
 }
@@ -59,7 +59,13 @@ export const thumbnailDataCache = new DataCache<VideoID, ThumbnailData>(() => ({
     },
     failures: [],
     thumbnailCachesFailed: new Set()
-}));
+}), (e) => {
+    for (const video of e.video) {
+        if (video.rendered) {
+            URL.revokeObjectURL(video.blobUrl);
+        }
+    }
+}, 1000);
 
 export interface ChannelData {
     avatarUrl: string | null;

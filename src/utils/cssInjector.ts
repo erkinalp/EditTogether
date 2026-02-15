@@ -1,8 +1,8 @@
 import { isFirefoxOrSafari, waitFor } from "../../maze-utils/src";
 import Config from "../config/config";
-import { brandingBoxSelector, watchPageThumbnailSelector } from "../videoBranding/videoBranding";
+import { watchPageThumbnailSelector } from "../videoBranding/videoBranding";
 import { logError } from "./logger";
-import { getThumbnailElements } from "../../maze-utils/src/thumbnail-selectors";
+import { brandingBoxSelector, getThumbnailElements } from "../../maze-utils/src/thumbnail-selectors";
 import { onMobile } from "../../maze-utils/src/pageInfo";
 
 const cssFiles = [
@@ -97,7 +97,12 @@ function buildHideThumbnailCss(): string {
         const thumbnailTypes = getThumbnailElements();
 
         for (const thumbnailType of thumbnailTypes) {
-            result.push(`${start} ${thumbnailType} img:not(.cb-visible, ytd-moving-thumbnail-renderer img, .cbCustomThumbnailCanvas, .yt-spec-avatar-shape__image, .cbShowOriginalImage)`);
+            let additionalItem = "";
+            if (thumbnailType === "yt-thumbnail-view-model") {
+                additionalItem = " *:not(.ytThumbnailViewModelBlurredImage)";
+            }
+
+            result.push(`${start} ${thumbnailType}${additionalItem} img:not(.cb-visible, ytd-moving-thumbnail-renderer img, .cbCustomThumbnailCanvas, .yt-spec-avatar-shape__image, .cbShowOriginalImage)`);
         }
     }
 
