@@ -92,6 +92,7 @@ async function handleUrlChange(): Promise<void> {
         removePreviewBar();
         removeSkipNotice();
         restorePlaybackState();
+        removeVideoListeners();
 
         sponsorTimes = [];
         sponsorSkipped = [];
@@ -128,11 +129,24 @@ async function setupVideo(): Promise<void> {
 function setupVideoListeners(): void {
     if (!video) return;
 
+    // Remove any existing listeners first to prevent duplicates
+    removeVideoListeners();
+
     video.addEventListener("seeked", onSeeked);
     video.addEventListener("play", onPlay);
     video.addEventListener("playing", onPlaying);
     video.addEventListener("pause", onPause);
     video.addEventListener("ratechange", onRateChange);
+}
+
+function removeVideoListeners(): void {
+    if (!video) return;
+
+    video.removeEventListener("seeked", onSeeked);
+    video.removeEventListener("play", onPlay);
+    video.removeEventListener("playing", onPlaying);
+    video.removeEventListener("pause", onPause);
+    video.removeEventListener("ratechange", onRateChange);
 }
 
 function onSeeked(): void {
@@ -682,7 +696,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
                 onMobileYouTube: false,
                 videoID: currentVideoID,
             });
-            break;
+            return true;
         case "sponsorStart":
             // Start creating a new segment
             if (video) {
@@ -712,17 +726,16 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 
                 sendResponse({ creatingSegment: !incomplete });
             }
-            break;
+            return true;
         case "refreshSegments":
             sendResponse({ hasVideo: !!currentVideoID });
             if (currentVideoID) {
                 void sponsorsLookup();
             }
-            break;
+            return true;
         case "update":
             void handleUrlChange();
-            break;
+            sendResponse({});
+            return true;
     }
-
-    sendResponse({});
 });
