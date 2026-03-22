@@ -57,7 +57,8 @@
         "libs/6xKydSBYKcSV-LCoeQqfX1RYOo3ig4vwlBduz8A.woff2"
     ],
     "permissions": [
-        "https://github.com/erkinalp/EditTogether/*"
+        "https://github.com/erkinalp/EditTogether/*",
+        "https://*.udemy.com/*"
     ],
     "optional_permissions": [
         "*://*/*"
@@ -131,6 +132,20 @@
             "content.css",
             "shared.css"
         ]
+    },
+    {
+        "run_at": "document_start",
+        "matches": [
+            "https://*.udemy.com/course/*/learn/lecture/*"
+        ],
+        "all_frames": true,
+        "js": [
+            "./js/udemyContent.js"
+        ],
+        "css": [
+            "content.css",
+            "shared.css"
+        ]
     }],
     "manifest_version": 2
-}                                
+}                                                                

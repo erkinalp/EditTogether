@@ -1,7 +1,8 @@
 {
   "host_permissions": [
     "https://*.youtube.com/*",
-    "https://sponsor.ajay.app/*"
+    "https://sponsor.ajay.app/*",
+    "https://*.udemy.com/*"
   ],
   "optional_host_permissions": [
     "*://*/*"
@@ -97,6 +98,21 @@
       ],
       "exclude_matches": [
         "https://accounts.youtube.com/RotateCookiesPage*"
+      ],
+      "all_frames": true,
+      "run_at": "document_start"
+  },
+  {
+      "world": "ISOLATED",
+      "js": [
+          "./js/udemyContent.js"
+      ],
+      "css": [
+        "content.css",
+        "shared.css"
+      ],
+      "matches": [
+          "https://*.udemy.com/course/*/learn/lecture/*"
       ],
       "all_frames": true,
       "run_at": "document_start"
