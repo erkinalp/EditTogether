@@ -96,6 +96,7 @@ module.exports = env => {
             popup: path.join(__dirname, srcDir + 'popup/popup.tsx'),
             background: path.join(__dirname, srcDir + 'background.ts'),
             content: path.join(__dirname, srcDir + 'content.ts'),
+            udemyContent: path.join(__dirname, srcDir + 'udemyContent.ts'),
             options: path.join(__dirname, srcDir + 'options.ts'),
             help: path.join(__dirname, srcDir + 'help.ts'),
             permissions: path.join(__dirname, srcDir + 'permissions.ts'),
