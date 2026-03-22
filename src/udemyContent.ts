@@ -682,7 +682,7 @@ function setCategoryColorCSSVariables(): void {
 
 // Listen for messages from the popup/background script
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-    if (!isOnUdemy()) return;
+    if (!isOnUdemy()) return false;
 
     switch (request.message) {
         case "isInfoFound":
@@ -738,4 +738,6 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
             sendResponse({});
             return true;
     }
+
+    return false;
 });
