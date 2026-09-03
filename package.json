@@ -13,7 +13,8 @@
   "overrides": {
     "content-scripts-register-polyfill": {
       "webext-content-scripts": "v2.5.5"
-    }
+    },
+    "nanoid": "^3.3.8"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.220",
@@ -43,6 +44,7 @@
     "typescript": "4.9",
     "web-ext": "^8.2.0",
     "webpack": "^5.105.0",
+    "patch-package": "^8.0.1",
     "webpack-cli": "^4.10.0",
     "webpack-merge": "^5.8.0"
   },
@@ -67,6 +69,7 @@
     "dev": "npm run build:dev && concurrently \"npm run web-run\" \"npm run build:watch\"",
     "dev:firefox": "npm run build:dev:firefox && concurrently \"npm run web-run:firefox\" \"npm run build:watch:firefox\"",
     "dev:firefox-android": "npm run build:dev:firefox && concurrently \"npm run web-run:firefox-android\" \"npm run build:watch:firefox\"",
+    "postinstall": "patch-package",
     "clean": "rimraf dist",
     "test": "npm run build:chrome && npx jest",
     "test-without-building": "npx jest",
